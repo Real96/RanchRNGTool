@@ -16,9 +16,15 @@ Generator tab: spreads of the IV seed advanced Min Advances..Max Advances times 
 rand() call), filtered by IV ranges.
 Searcher tab: every IV seed whose spread fits the IV ranges, found by reverse calculation. A seed
 found here is the Generator's "Current Seed" at the advance that produces the spread.
+In both tabs a click on an IV name sets its range to 0-31, a Ctrl+click to 31-31.
 Seed to RTC tab: date/time (RTC) to set so that the boot seed reaches a target seed within a range
 of advances, on the emulator only. In Dolphin the boot seed is Origin Seed + 0x39EF8B0 * seconds
 since 01/01/2000 00:00:00; the Origin Seed is kept in ranch_rng_tool.ini next to this script.
+Trade Offset (Generator and Seed to RTC): when Phione and Mew are offered in the same deposit,
+Hayley offers Phione first, and Mew's IVs are generated 62 rand() calls after the A press that
+accepts that trade (Accepted) or 23 after the one that refuses it (Refused). With the option on, the
+Generator lists the seed and advance of the A press next to the IVs generated that many calls
+later, and Seed to RTC aims the A press that many calls before the Target Seed.
 Seed from Camera tab: the current rand() state from a sequence of camera movements of the idle
 ranch (3 calls per camera), after an Initial Seed or by bruteforce over all the states.
 Seed from Dex tab: the current rand() state from the Pokédex descriptions that the trade shows at
@@ -53,7 +59,7 @@ from tkinter import ttk
 APP_TITLE = "Ranch RNG Tool"
 APP_DESCRIPTION = "Useful tool for RNG manipulation on My Pokémon Ranch games."
 AUTHOR_NAME = "Real96"
-AUTHOR_URL = "https://github.com/Real96/"
+GITHUB_URL = "https://github.com/Real96/RanchRNGTool"
 THEMES = ("Light", "Dark")
 DEFAULT_THEME = "Dark"
 DEFAULT_WINDOW_HEIGHT = 640     # the width comes from the content (also the minimum width)
@@ -73,6 +79,10 @@ STAT_SHIFTS = (0, 5, 10, 20, 25, 15)    # bit offset of each STAT_NAMES entry in
 
 DEFAULT_MAX_ADVANCES = 1_000_000
 MAX_RESULTS = 5_000_000     # safety cap, every result row is kept in memory
+
+# Trade Offset: rand() calls from the A press on Phione's offer to the generation of Mew's IVs, when
+# both trades are offered in the same deposit (measured in the game).
+TRADE_OFFSETS = {"Accepted": 62, "Refused": 23}
 SEARCH_CHUNK = 1 << 16      # advances between two cancel/progress checks
 
 U32 = "I" if array("I").itemsize == 4 else "L"     # array typecode for unsigned 32-bit values
@@ -128,6 +138,13 @@ def rand_advance(state, steps):
     """rand() state after `steps` calls (negative values go back)."""
     mul, add = rand_jump(steps & MASK32)
     return (state * mul + add) & MASK32
+
+
+def advance_states(states, steps):
+    """Copy of the array `states` with every rand() state advanced by `steps` calls (negative
+    values go back)."""
+    mul, add = rand_jump(steps & MASK32)
+    return array(U32, ((state * mul + add) & MASK32 for state in states))
 
 
 class SearchProgress:
@@ -294,7 +311,8 @@ class SpreadFilter:
 
 @dataclass
 class GeneratorOutcome:
-    seeds: array        # IV seed (rand() state) of each hit: the "Current Seed" column
+    seeds: array        # rand() state of each hit, the "Current Seed" column: the IV seed, or with
+                        # a Trade Offset the state that many calls before it
     advances: array     # advance of each hit, ascending
     ivs: array          # 30-bit IV word of each hit
     first: int          # first advance examined (Min Advances)
@@ -316,12 +334,14 @@ SEEK_SECONDS_PER_SEED = 11e-6
 
 
 def search_ivs(seed, min_advances, max_advances, iv_ranges, cancel=None, progress=None,
-               max_results=MAX_RESULTS, method="auto"):
+               max_results=MAX_RESULTS, method="auto", offset=0):
     """Spreads of the IV seed `seed` advanced min_advances..max_advances times that fit iv_ranges.
 
     Two equivalent strategies: "scan" generates every advance; "seek" lists every seed in the
     whole RNG cycle whose spread fits (reverse calculation) and keeps those within reach,
     measuring their distance from `seed`. "auto" picks the one expected to be faster.
+    With an `offset` (the Trade Offset), the spread of each advance is generated `offset` rand()
+    calls later; the seeds and advances listed stay those of the advance itself.
     """
     spread_filter = SpreadFilter(iv_ranges)
     if method == "auto":
@@ -330,10 +350,17 @@ def search_ivs(seed, min_advances, max_advances, iv_ranges, cancel=None, progres
         scan_cost = (max_advances - min_advances + 1) * SCAN_SECONDS_PER_ADVANCE
         fits = spread_filter.seed_estimate <= max_results
         method = "seek" if fits and seek_cost < scan_cost else "scan"
+    # Advance n of `seed` + offset calls = advance n of the seed `offset` calls further on.
+    start = rand_advance(seed, offset)
     if method == "seek":
-        return _seek_advances(seed, min_advances, max_advances, spread_filter, cancel, progress)
-    return _scan_advances(seed, min_advances, max_advances, spread_filter, cancel, progress,
-                          max_results)
+        outcome = _seek_advances(start, min_advances, max_advances, spread_filter, cancel,
+                                 progress)
+    else:
+        outcome = _scan_advances(start, min_advances, max_advances, spread_filter, cancel,
+                                 progress, max_results)
+    if offset:
+        outcome.seeds = advance_states(outcome.seeds, -offset)
+    return outcome
 
 
 def _scan_advances(seed, min_advances, max_advances, spread_filter, cancel, progress, max_results):
@@ -456,14 +483,17 @@ class RtcOutcome:
 
 
 def search_rtc(origin, target, first_second, min_advances, max_advances, max_results,
-               cancel=None, progress=None, method="auto"):
+               cancel=None, progress=None, method="auto", offset=0):
     """The first `max_results` RTCs from `first_second` on whose boot seed reaches `target` after
     min_advances..max_advances rand() calls.
 
     "scan" checks one second after the other; "seek" walks back from the target over the allowed
     advances and solves Origin + 0x39EF8B0 * t = state for t. Same results; "auto" picks the one
     expected to be faster.
+    With an `offset` (the Trade Offset), the advances lead to the state `offset` calls before
+    `target`, which then comes `offset` calls after them.
     """
+    target = rand_advance(target, -offset)
     # All boot seeds share the low 4 bits of the Origin Seed, so all their distances to the
     # target have the same residue mod 16: the first advance with that residue may be the minimum.
     residue = rand_distance(origin, target) & 15
@@ -2102,7 +2132,8 @@ def error_icon_png(size):
 # ------------------------------------------------------------------------------------------------
 
 class IvRangeFrame(ttk.LabelFrame):
-    """Min/Max spinboxes for the six IVs."""
+    """Min/Max spinboxes for the six IVs. A click on a stat's name sets its range to 0-31 (any
+    value), a Ctrl+click to 31-31."""
 
     def __init__(self, master, on_submit=None):
         super().__init__(master, text="IVs", padding=(10, 6))
@@ -2110,7 +2141,12 @@ class IvRangeFrame(ttk.LabelFrame):
         ttk.Label(self, text="Max").grid(row=2, column=0, sticky="w", padx=(0, 6))
         self.min_vars, self.max_vars = [], []
         for column, name in enumerate(STAT_NAMES, start=1):
-            ttk.Label(self, text=name).grid(row=0, column=column)
+            label = ttk.Label(self, text=name, cursor="hand2")
+            label.grid(row=0, column=column)
+            # Tk runs the most specific binding: <Control-Button-1> when Ctrl is held
+            label.bind("<Button-1>", lambda event, index=column - 1: self.set_range(index, 0, 31))
+            label.bind("<Control-Button-1>",
+                       lambda event, index=column - 1: self.set_range(index, 31, 31))
             self.columnconfigure(column, weight=1)      # the spinboxes widen with the frame
             for row, (default, variables) in enumerate((("0", self.min_vars),
                                                         ("31", self.max_vars)), start=1):
@@ -2123,10 +2159,52 @@ class IvRangeFrame(ttk.LabelFrame):
                     spinbox.bind("<Return>", on_submit)
                 variables.append(variable)
 
+    def set_range(self, index, low, high):
+        """Min and Max of the stat at `index` in STAT_NAMES."""
+        self.min_vars[index].set(str(low))
+        self.max_vars[index].set(str(high))
+
     def ranges(self):
         """(min, max) per stat in STAT_NAMES order; raises ValueError with a readable message."""
         return [parse_iv_range(name, low.get(), high.get())
                 for name, low, high in zip(STAT_NAMES, self.min_vars, self.max_vars)]
+
+
+TRADE_OFFSET_WIDTH = max(len(choice) for choice in TRADE_OFFSETS)     # drop-down width, characters
+
+
+class TradeOffsetOption:
+    """"Trade Offset" check box, gridded in `master` at (row, column), with the Accepted / Refused
+    drop-down on its right; the drop-down is greyed out while the box is off."""
+
+    def __init__(self, master, row, column, on_submit=None):
+        self.enabled_var = tk.BooleanVar(value=False)
+        self.choice_var = tk.StringVar(value=next(iter(TRADE_OFFSETS)))
+        self.check = ttk.Checkbutton(master, text="Trade Offset", variable=self.enabled_var,
+                                     command=self._sync_state)
+        self.check.grid(row=row, column=column, sticky="w", padx=(16 if column else 0, 8), pady=4)
+        self.combobox = ttk.Combobox(master, textvariable=self.choice_var,
+                                     values=tuple(TRADE_OFFSETS), width=TRADE_OFFSET_WIDTH,
+                                     state="disabled")
+        self.combobox.grid(row=row, column=column + 1, sticky="ew", pady=4)
+        if on_submit is not None:
+            self.combobox.bind("<Return>", on_submit)
+
+    def _sync_state(self):
+        self.combobox.configure(state="readonly" if self.enabled_var.get() else "disabled")
+
+    def offset(self):
+        """rand() calls between the shown seed and the IVs: 0 while the option is off."""
+        return TRADE_OFFSETS[self.choice_var.get()] if self.enabled_var.get() else 0
+
+    def apply_colors(self, colors):
+        """The drop-down list is a classic Tk Listbox: colour it like the Entries lists."""
+        popdown = self.combobox.tk.call("ttk::combobox::PopdownWindow", self.combobox)
+        self.combobox.tk.call(f"{popdown}.f.l", "configure",
+                              "-background", colors["list_background"],
+                              "-foreground", colors["list_text"],
+                              "-selectbackground", colors["list_selected"],
+                              "-selectforeground", colors["list_selected_text"])
 
 
 class SearchTab(ttk.Frame):
@@ -2298,8 +2376,13 @@ class GeneratorTab(SearchTab):
             entry.grid(row=row, column=1, sticky="ew", pady=4)
             if row == 0:
                 entry.focus_set()
+        self.trade_offset = TradeOffsetOption(settings, len(fields), 0, self.start_search)
         self.iv_frame = IvRangeFrame(parent, on_submit=self.start_search)
         self.iv_frame.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
+
+    def apply_colors(self, colors):
+        super().apply_colors(colors)
+        self.trade_offset.apply_colors(colors)
 
     def _read_inputs(self):
         seed = parse_seed(self.seed_var.get())
@@ -2308,13 +2391,15 @@ class GeneratorTab(SearchTab):
         if min_advances > max_advances:
             raise ValueError(f"Min Advances ({min_advances}) is greater than Max Advances "
                              f"({max_advances}).")
-        inputs = (seed, min_advances, max_advances, self.iv_frame.ranges())
+        inputs = (seed, min_advances, max_advances, self.iv_frame.ranges(),
+                  self.trade_offset.offset())
         self.seed_var.set(f"{seed:08X}")    # 8 digits without 0x: what the field is sized for
         return inputs
 
     def _search(self, inputs, cancel, progress):
-        seed, min_advances, max_advances, iv_ranges = inputs
-        return search_ivs(seed, min_advances, max_advances, iv_ranges, cancel, progress)
+        seed, min_advances, max_advances, iv_ranges, offset = inputs
+        return search_ivs(seed, min_advances, max_advances, iv_ranges, cancel, progress,
+                          offset=offset)
 
     def _present(self, outcome):
         found = plural(len(outcome.seeds), "result")
@@ -2392,10 +2477,16 @@ class SeedRtcTab(SearchTab):
             entry.grid(row=row, column=column + 1, sticky="ew", pady=4)
             if kind == "rtc":
                 entry.bind("<FocusOut>", self._finish_rtc)
-        # The boot seed follows the RTC this way only in Dolphin.
+        # The boot seed follows the RTC this way only in Dolphin: the note sits under the RTC,
+        # the Trade Offset under the advances.
         ttk.Label(settings, text="Emulator only", style="Note.TLabel").grid(
-            row=3, column=0, columnspan=4, sticky="w", pady=(2, 0))
+            row=3, column=0, columnspan=2, sticky="w", pady=(2, 0))
+        self.trade_offset = TradeOffsetOption(settings, 3, 2, self.start_search)
         self._last_rtc = self.rtc_var.get()     # put back when a left field has no date
+
+    def apply_colors(self, colors):
+        super().apply_colors(colors)
+        self.trade_offset.apply_colors(colors)
 
     def _finish_rtc(self, event=None):
         """A left Initial RTC field always shows a whole date and time."""
@@ -2418,10 +2509,12 @@ class SeedRtcTab(SearchTab):
         self.origin_var.set(f"{origin:08X}")
         self.target_var.set(f"{target:08X}")
         self._settings.origin_seed = origin
-        return origin, target, first_second, min_advances, max_advances, max_results
+        return (origin, target, first_second, min_advances, max_advances, max_results,
+                self.trade_offset.offset())
 
     def _search(self, inputs, cancel, progress):
-        return search_rtc(*inputs, cancel=cancel, progress=progress)
+        *arguments, offset = inputs
+        return search_rtc(*arguments, cancel=cancel, progress=progress, offset=offset)
 
     def _present(self, outcome):
         found = plural(len(outcome.seconds), "result")
@@ -2932,6 +3025,23 @@ class ThemeManager:
                       background=[("active", p["hover"])], arrowcolor=[("disabled", p["muted"])],
                       fieldbackground=[("disabled", p["background"])],
                       foreground=[("disabled", p["muted"])])
+        # The Trade Offset drop-down is read-only: its field looks like an entry, without the
+        # selection colour that clam gives a focused read-only field.
+        style.configure("TCombobox", fieldbackground=p["surface"], foreground=p["text"],
+                        background=p["raised"], arrowcolor=p["text"], bordercolor=p["border"],
+                        lightcolor=p["surface"], darkcolor=p["surface"],
+                        selectbackground=p["surface"], selectforeground=p["text"])
+        style.map("TCombobox",
+                  fieldbackground=[("disabled", p["background"]), ("readonly", p["surface"])],
+                  foreground=[("disabled", p["muted"]), ("readonly", p["text"])],
+                  background=[("disabled", p["background"]), ("pressed", p["pressed"]),
+                              ("active", p["hover"])],
+                  arrowcolor=[("disabled", p["muted"])], bordercolor=[("focus", p["accent"])],
+                  lightcolor=[("focus", p["surface"])], darkcolor=[("focus", p["surface"])],
+                  selectbackground=[("readonly", p["surface"])],
+                  selectforeground=[("readonly", p["text"])])
+        style.configure("ComboboxPopdownFrame", background=p["surface"], bordercolor=p["border"],
+                        lightcolor=p["surface"], darkcolor=p["surface"])
         # Check boxes and radio buttons keep the window colour on hover: only the indicator reacts.
         for name in ("TCheckbutton", "TRadiobutton"):
             style.configure(name, background=p["background"], foreground=p["text"],
@@ -3057,23 +3167,22 @@ class AboutDialog(tk.Toplevel):
         self.configure(background=colors["background"])
         body = ttk.Frame(self, padding=(24, 18))
         body.pack(fill="both", expand=True)
-        # A read-only Text, so that the link sits right next to the parentheses.
-        lead, tail = f"Author: {AUTHOR_NAME} (", ")"
+        # A read-only Text, so that the link sits right after "GitHub: " in a centred line.
+        author, lead = f"Author: {AUTHOR_NAME}", "GitHub: "
         font = tkfont.nametofont("TkDefaultFont")
-        longest = max(font.measure(APP_DESCRIPTION), font.measure(lead + AUTHOR_URL + tail))
-        message = tk.Text(body, height=3, width=-(-longest // font.measure("0")) + 2, wrap="none",
+        longest = max(font.measure(text) for text in (APP_DESCRIPTION, author, lead + GITHUB_URL))
+        message = tk.Text(body, height=5, width=-(-longest // font.measure("0")) + 2, wrap="none",
                           borderwidth=0, highlightthickness=0, takefocus=0, cursor="arrow",
                           font="TkDefaultFont", background=colors["background"],
                           foreground=colors["text"], selectbackground=colors["table_selected"],
                           selectforeground=colors["table_selected_text"])
         message.tag_configure("line", justify="center")
         message.tag_configure("link", foreground=colors["link"], underline=True)
-        message.insert("end", f"{APP_DESCRIPTION}\n\n{lead}", "line")
-        message.insert("end", AUTHOR_URL, ("line", "link"))
-        message.insert("end", tail, "line")
+        message.insert("end", f"{APP_DESCRIPTION}\n\n{author}\n\n{lead}", "line")
+        message.insert("end", GITHUB_URL, ("line", "link"))
         message.tag_bind("link", "<Enter>", lambda event: message.configure(cursor="hand2"))
         message.tag_bind("link", "<Leave>", lambda event: message.configure(cursor="arrow"))
-        message.tag_bind("link", "<Button-1>", lambda event: webbrowser.open(AUTHOR_URL))
+        message.tag_bind("link", "<Button-1>", lambda event: webbrowser.open(GITHUB_URL))
         message.configure(state="disabled")
         message.pack()
         ok_button = ttk.Button(body, text="OK", command=self.destroy)
