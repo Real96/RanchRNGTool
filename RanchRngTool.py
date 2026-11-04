@@ -35,7 +35,11 @@ Seed.
 Seed from Dice tab: the current rand() state from the faces of dice rolls (JPN Platinum only, 3
 calls per roll or 5 after a 1, 5 or 6), after an Initial Seed or by bruteforce over all the states.
 
-Only the Python standard library is needed (tkinter).
+Only the Python standard library is needed (tkinter), Python 3.8 or later. It runs on Windows,
+macOS and Linux; on Linux tkinter may come as a separate package (python3-tk on Debian/Ubuntu,
+python3-tkinter on Fedora), and with Homebrew on macOS as python-tk. On macOS the Ctrl+click on an
+IV name is Command+click, Ctrl+A/Ctrl+C are also Command+A/Command+C, and the right-click menus also
+open with Control+click.
 """
 import base64
 import bisect
@@ -1244,6 +1248,40 @@ def stretch_columns(frame):
 
 
 # ------------------------------------------------------------------------------------------------
+# Mouse and keyboard conventions of Windows, macOS and Linux
+# ------------------------------------------------------------------------------------------------
+
+def on_macos(widget):
+    """True on macOS (Tk's "aqua" windowing system); Windows is "win32", Linux "x11"."""
+    return widget.tk.call("tk", "windowingsystem") == "aqua"
+
+
+def context_click_sequences(widget):
+    """Events that ask for a context menu: the right button, which is Button-3, or Button-2 on
+    macOS with Tk 8.6; on macOS also Control+click."""
+    if on_macos(widget):
+        return "<Button-2>", "<Button-3>", "<Control-Button-1>"
+    return ("<Button-3>",)
+
+
+def modifier_click_sequence(widget):
+    """Ctrl+click, which is Command+click on macOS (there Control+click is a right-click)."""
+    return "<Command-Button-1>" if on_macos(widget) else "<Control-Button-1>"
+
+
+def shortcut_sequences(widget, letter):
+    """Ctrl+letter (either case), and Command+letter too on macOS."""
+    modifiers = ("Control", "Command") if on_macos(widget) else ("Control",)
+    return tuple(f"<{modifier}-{key}>" for modifier in modifiers
+                 for key in (letter.lower(), letter.upper()))
+
+
+def wheel_notch(widget):
+    """<MouseWheel> delta of one wheel notch: 120, but one line on macOS before Tk 8.7."""
+    return 1 if on_macos(widget) and tk.TkVersion < 8.7 else 120
+
+
+# ------------------------------------------------------------------------------------------------
 # Virtual table widget
 # ------------------------------------------------------------------------------------------------
 
@@ -1353,6 +1391,7 @@ class VirtualTable(ttk.Frame):
         self._sort_descending = False
         self._dragging = False
         self._wheel_delta = 0
+        self._wheel_notch = wheel_notch(self)
         self._context_menu = None       # created by the first add_context_action()
         self._context_values = None     # values of the row the menu was opened on
         self._apply_widths(self._min_widths)
@@ -1385,12 +1424,12 @@ class VirtualTable(ttk.Frame):
         body.bind("<End>", lambda event: self._on_key_move(
             event, to_column=len(self._columns) - 1,
             to_row=len(self._order) - 1 if event.state & self.CONTROL_MASK else None))
-        for sequence in ("<Control-a>", "<Control-A>"):
+        for sequence in shortcut_sequences(self, "a"):
             body.bind(sequence, self._on_select_all)
-        for sequence in ("<Control-c>", "<Control-C>"):
+        for sequence in shortcut_sequences(self, "c"):
             body.bind(sequence, self._on_copy)
-        aqua = self.tk.call("tk", "windowingsystem") == "aqua"
-        body.bind("<Button-2>" if aqua else "<Button-3>", self._on_context_menu)
+        for sequence in context_click_sequences(self):
+            body.bind(sequence, self._on_context_menu)
 
     # -- public API ------------------------------------------------------------------------------
 
@@ -1701,10 +1740,11 @@ class VirtualTable(ttk.Frame):
 
     def _on_wheel(self, event):
         self._wheel_delta += event.delta
-        notches = int(self._wheel_delta / 120)
+        notches = int(self._wheel_delta / self._wheel_notch)
         if notches:
-            self._wheel_delta -= notches * 120
-            self._scroll_by(-notches * self.WHEEL_LINES)
+            self._wheel_delta -= notches * self._wheel_notch
+            # A notch of 120 scrolls WHEEL_LINES lines; a delta in lines (macOS, Tk 8.6) as many.
+            self._scroll_by(-notches * (self.WHEEL_LINES if self._wheel_notch == 120 else 1))
         return "break"
 
     # -- selection -------------------------------------------------------------------------------
@@ -2159,9 +2199,9 @@ def error_icon_png(size):
 
 class IvRangeFrame(ttk.LabelFrame):
     """Min/Max spinboxes for the six IVs. A click on a stat's name sets its range to 0-31 (any
-    value), a Ctrl+click to 31-31. A right-click anywhere in the frame opens a menu that copies,
-    pastes (as "0/0/0/0/0/0-31/31/31/31/31/31"), clears or maxes out all the ranges;
-    on_message(text) shows a short confirmation."""
+    value), a Ctrl+click (Command+click on macOS) to 31-31. A right-click anywhere in the frame
+    opens a menu that copies, pastes (as "0/0/0/0/0/0-31/31/31/31/31/31"), clears or maxes out all
+    the ranges; on_message(text) shows a short confirmation."""
 
     def __init__(self, master, on_submit=None, on_message=None):
         super().__init__(master, text="IVs", padding=(10, 6))
@@ -2172,9 +2212,9 @@ class IvRangeFrame(ttk.LabelFrame):
         for column, name in enumerate(STAT_NAMES, start=1):
             label = ttk.Label(self, text=name, cursor="hand2")
             label.grid(row=0, column=column)
-            # Tk runs the most specific binding: <Control-Button-1> when Ctrl is held
+            # Tk runs the most specific binding: the modifier one when the modifier is held
             label.bind("<Button-1>", lambda event, index=column - 1: self.set_range(index, 0, 31))
-            label.bind("<Control-Button-1>",
+            label.bind(modifier_click_sequence(self),
                        lambda event, index=column - 1: self.set_range(index, 31, 31))
             self.columnconfigure(column, weight=1)      # the spinboxes widen with the frame
             for row, (default, variables) in enumerate((("0", self.min_vars),
@@ -2192,10 +2232,10 @@ class IvRangeFrame(ttk.LabelFrame):
         self.menu.add_command(label="Paste IVs from clipboard", command=self.paste_ranges)
         self.menu.add_command(label="Clear IVs", command=lambda: self.set_all(0, 31))
         self.menu.add_command(label="Set 6IVs", command=lambda: self.set_all(31, 31))
-        aqua = self.tk.call("tk", "windowingsystem") == "aqua"
         for widget in (self, *self.winfo_children()):
             if widget is not self.menu:
-                widget.bind("<Button-2>" if aqua else "<Button-3>", self._show_menu)
+                for sequence in context_click_sequences(self):
+                    widget.bind(sequence, self._show_menu)
 
     def set_range(self, index, low, high):
         """Min and Max of the stat at `index` in STAT_NAMES."""
@@ -3012,7 +3052,15 @@ def menu_colors(colors):
 
 
 def set_dark_title_bar(window, dark):
-    """Ask Windows 10/11 for a dark or light title bar; nothing happens elsewhere."""
+    """Ask Windows 10/11 or macOS for a dark or light title bar (on macOS the native menus follow
+    it too); on Linux the window manager draws the title bar and nothing happens."""
+    if on_macos(window):
+        try:        # Tk 8.6.10 and later
+            window.tk.call("::tk::unsupported::MacWindowStyle", "appearance", str(window),
+                           "darkaqua" if dark else "aqua")
+        except tk.TclError:
+            pass
+        return
     if sys.platform != "win32":
         return
     try:
@@ -3227,7 +3275,7 @@ class MessageDialog(tk.Toplevel):
         ok_button.pack(side="right")
         for sequence in ("<Return>", "<KP_Enter>", "<Escape>"):
             self.bind(sequence, lambda event: self.destroy())
-        for sequence in ("<Control-c>", "<Control-C>"):
+        for sequence in shortcut_sequences(self, "c"):
             self.bind(sequence, lambda event: self._copy(message))
         present_dialog(self, master, theme_name == "Dark")
         ok_button.focus_set()
@@ -3493,7 +3541,7 @@ class RanchRngApp(tk.Tk):
         self.withdraw()                 # shown once its size is known
         self.settings = settings if settings is not None else AppSettings()
         self.title(APP_TITLE)
-        # Mew as the icon of this window and of every dialog; Windows picks the size it needs.
+        # Mew as the icon of this window and of every dialog; the system picks the size it needs.
         self._icons = [tk.PhotoImage(master=self, data=data) for data in APP_ICONS.values()]
         self.iconphoto(True, *self._icons)
         self.theme = ThemeManager(self)
@@ -3525,6 +3573,10 @@ class RanchRngApp(tk.Tk):
             self.theme.add_listener(tab.apply_colors)
         self.theme.apply(self.theme_var.get())
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+        if on_macos(self):
+            # About and Quit (also Command+Q) of the macOS application menu
+            self.createcommand("tkAboutDialog", self.show_about)
+            self.createcommand("::tk::mac::Quit", self._on_close)
         # The window opens as wide as its widest tab needs, which is also the smallest width it
         # takes. It can be resized from every side and maximized: the input boxes share the
         # extra width, the results tables get the extra width and height.
