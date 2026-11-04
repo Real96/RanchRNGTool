@@ -16,7 +16,9 @@ Generator tab: spreads of the IV seed advanced Min Advances..Max Advances times 
 rand() call), filtered by IV ranges.
 Searcher tab: every IV seed whose spread fits the IV ranges, found by reverse calculation. A seed
 found here is the Generator's "Current Seed" at the advance that produces the spread.
-In both tabs a click on an IV name sets its range to 0-31, a Ctrl+click to 31-31.
+In both tabs a click on an IV name sets its range to 0-31, a Ctrl+click to 31-31, and a right-click
+in the IVs box copies or pastes all the ranges (as 0/0/0/0/0/0-31/31/31/31/31/31), clears them or
+sets them all to 31.
 Seed to RTC tab: date/time (RTC) to set so that the boot seed reaches a target seed within a range
 of advances, on the emulator only. In Dolphin the boot seed is Origin Seed + 0x39EF8B0 * seconds
 since 01/01/2000 00:00:00; the Origin Seed is kept in ranch_rng_tool.ini next to this script.
@@ -1060,6 +1062,30 @@ def parse_iv_range(stat, min_text, max_text):
     if bounds[0] > bounds[1]:
         raise ValueError(f"{stat}: Min ({bounds[0]}) is greater than Max ({bounds[1]}).")
     return tuple(bounds)
+
+
+# IV ranges as text, e.g. "0/0/0/0/0/0-31/31/31/31/31/31": the six Min values, a dash, the six Max
+# values, in STAT_NAMES order. Spaces around the separators are accepted.
+_IV_VALUES_PATTERN = r"\s*/\s*".join([r"(\d{1,2})"] * len(STAT_NAMES))
+IV_RANGES_PATTERN = re.compile(rf"\s*{_IV_VALUES_PATTERN}\s*-\s*{_IV_VALUES_PATTERN}\s*")
+
+
+def iv_ranges_text(ranges):
+    """Text form of [(min, max)] per stat (see IV_RANGES_PATTERN)."""
+    return "/".join(str(low) for low, _ in ranges) + "-" + "/".join(str(high) for _, high in ranges)
+
+
+def parse_iv_ranges_text(text):
+    """[(min, max)] per stat from the text form, or None if `text` is not in that form or holds a
+    value above 31 or a Min greater than its Max."""
+    match = IV_RANGES_PATTERN.fullmatch(text)
+    if match is None:
+        return None
+    values = [int(value) for value in match.groups()]
+    ranges = list(zip(values[:len(STAT_NAMES)], values[len(STAT_NAMES):]))
+    if any(not low <= high <= 31 for low, high in ranges):
+        return None
+    return ranges
 
 
 def plural(count, word):
@@ -2133,10 +2159,13 @@ def error_icon_png(size):
 
 class IvRangeFrame(ttk.LabelFrame):
     """Min/Max spinboxes for the six IVs. A click on a stat's name sets its range to 0-31 (any
-    value), a Ctrl+click to 31-31."""
+    value), a Ctrl+click to 31-31. A right-click anywhere in the frame opens a menu that copies,
+    pastes (as "0/0/0/0/0/0-31/31/31/31/31/31"), clears or maxes out all the ranges;
+    on_message(text) shows a short confirmation."""
 
-    def __init__(self, master, on_submit=None):
+    def __init__(self, master, on_submit=None, on_message=None):
         super().__init__(master, text="IVs", padding=(10, 6))
+        self._on_message = on_message
         ttk.Label(self, text="Min").grid(row=1, column=0, sticky="w", padx=(0, 6))
         ttk.Label(self, text="Max").grid(row=2, column=0, sticky="w", padx=(0, 6))
         self.min_vars, self.max_vars = [], []
@@ -2158,37 +2187,86 @@ class IvRangeFrame(ttk.LabelFrame):
                 if on_submit is not None:
                     spinbox.bind("<Return>", on_submit)
                 variables.append(variable)
+        self.menu = tk.Menu(self, tearoff=False)
+        self.menu.add_command(label="Copy IVs to clipboard", command=self.copy_ranges)
+        self.menu.add_command(label="Paste IVs from clipboard", command=self.paste_ranges)
+        self.menu.add_command(label="Clear IVs", command=lambda: self.set_all(0, 31))
+        self.menu.add_command(label="Set 6IVs", command=lambda: self.set_all(31, 31))
+        aqua = self.tk.call("tk", "windowingsystem") == "aqua"
+        for widget in (self, *self.winfo_children()):
+            if widget is not self.menu:
+                widget.bind("<Button-2>" if aqua else "<Button-3>", self._show_menu)
 
     def set_range(self, index, low, high):
         """Min and Max of the stat at `index` in STAT_NAMES."""
         self.min_vars[index].set(str(low))
         self.max_vars[index].set(str(high))
 
+    def set_all(self, low, high):
+        """The same Min and Max for every stat."""
+        for index in range(len(STAT_NAMES)):
+            self.set_range(index, low, high)
+
     def ranges(self):
         """(min, max) per stat in STAT_NAMES order; raises ValueError with a readable message."""
         return [parse_iv_range(name, low.get(), high.get())
                 for name, low, high in zip(STAT_NAMES, self.min_vars, self.max_vars)]
+
+    def apply_colors(self, colors):
+        self.menu.configure(**menu_colors(colors))
+
+    def _show_menu(self, event):
+        try:
+            self.menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.menu.grab_release()
+        return "break"
+
+    def copy_ranges(self):
+        try:
+            text = iv_ranges_text(self.ranges())
+        except ValueError as error:
+            show_error(self, "Invalid input", str(error))
+            return
+        self.clipboard_clear()
+        self.clipboard_append(text)
+        if self._on_message is not None:
+            self._on_message(f"Copied {text} to the clipboard")
+
+    def paste_ranges(self):
+        try:
+            ranges = parse_iv_ranges_text(self.clipboard_get())
+        except tk.TclError:             # empty clipboard, or no text in it
+            ranges = None
+        if ranges is None:
+            show_error(self, "Invalid input",
+                       "The clipboard text did not match the expected format.")
+            return
+        for index, (low, high) in enumerate(ranges):
+            self.set_range(index, low, high)
+        if self._on_message is not None:
+            self._on_message(f"Pasted {iv_ranges_text(ranges)} from the clipboard")
 
 
 TRADE_OFFSET_WIDTH = max(len(choice) for choice in TRADE_OFFSETS)     # drop-down width, characters
 
 
 class TradeOffsetOption:
-    """"Trade Offset" check box, gridded in `master` at (row, column), with the Accepted / Refused
-    drop-down on its right; the drop-down is greyed out while the box is off."""
+    """"Trade Offset" check box (on at start), gridded in `master` at (row, column), with the
+    Accepted / Refused drop-down on its right; the drop-down is greyed out while the box is off."""
 
     def __init__(self, master, row, column, on_submit=None):
-        self.enabled_var = tk.BooleanVar(value=False)
+        self.enabled_var = tk.BooleanVar(value=True)
         self.choice_var = tk.StringVar(value=next(iter(TRADE_OFFSETS)))
         self.check = ttk.Checkbutton(master, text="Trade Offset", variable=self.enabled_var,
                                      command=self._sync_state)
         self.check.grid(row=row, column=column, sticky="w", padx=(16 if column else 0, 8), pady=4)
         self.combobox = ttk.Combobox(master, textvariable=self.choice_var,
-                                     values=tuple(TRADE_OFFSETS), width=TRADE_OFFSET_WIDTH,
-                                     state="disabled")
+                                     values=tuple(TRADE_OFFSETS), width=TRADE_OFFSET_WIDTH)
         self.combobox.grid(row=row, column=column + 1, sticky="ew", pady=4)
         if on_submit is not None:
             self.combobox.bind("<Return>", on_submit)
+        self._sync_state()
 
     def _sync_state(self):
         self.combobox.configure(state="readonly" if self.enabled_var.get() else "disabled")
@@ -2198,13 +2276,17 @@ class TradeOffsetOption:
         return TRADE_OFFSETS[self.choice_var.get()] if self.enabled_var.get() else 0
 
     def apply_colors(self, colors):
-        """The drop-down list is a classic Tk Listbox: colour it like the Entries lists."""
-        popdown = self.combobox.tk.call("ttk::combobox::PopdownWindow", self.combobox)
-        self.combobox.tk.call(f"{popdown}.f.l", "configure",
-                              "-background", colors["list_background"],
-                              "-foreground", colors["list_text"],
-                              "-selectbackground", colors["list_selected"],
-                              "-selectforeground", colors["list_selected_text"])
+        """Recolour the drop-down list after a theme switch, if Tk has already created it (a list
+        created later takes its colours from the option database, see ThemeManager). It must not
+        be created here: on Windows it is a topmost window, and created before the main window is
+        first shown it makes the main window stay on top of the others too."""
+        listbox = f"{self.combobox}.popdown.f.l"
+        if self.combobox.winfo_exists() and self.combobox.tk.call("winfo", "exists", listbox):
+            self.combobox.tk.call(listbox, "configure",
+                                  "-background", colors["list_background"],
+                                  "-foreground", colors["list_text"],
+                                  "-selectbackground", colors["list_selected"],
+                                  "-selectforeground", colors["list_selected_text"])
 
 
 class SearchTab(ttk.Frame):
@@ -2257,6 +2339,11 @@ class SearchTab(ttk.Frame):
         # Long messages wrap at the width of the window instead of widening it.
         bar.bind("<Configure>", lambda event: status_label.configure(
             wraplength=max(100, event.width - self.progress_bar.winfo_reqwidth() - 12)))
+        # The bar keeps the tallest height it has needed. A shorter message, such as
+        # "Searching..." after a two-line summary, would otherwise move the buttons and the table
+        # while the search keeps the window busy, and their old image would stay on screen.
+        status_label.bind("<Configure>", lambda event: bar.rowconfigure(
+            0, minsize=max(event.height, int(bar.grid_rowconfigure(0)["minsize"]))))
 
         self.rowconfigure(1, weight=1)
         self.columnconfigure(0, weight=1)
@@ -2377,12 +2464,14 @@ class GeneratorTab(SearchTab):
             if row == 0:
                 entry.focus_set()
         self.trade_offset = TradeOffsetOption(settings, len(fields), 0, self.start_search)
-        self.iv_frame = IvRangeFrame(parent, on_submit=self.start_search)
+        self.iv_frame = IvRangeFrame(parent, on_submit=self.start_search,
+                                     on_message=self.flash_status)
         self.iv_frame.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
 
     def apply_colors(self, colors):
         super().apply_colors(colors)
         self.trade_offset.apply_colors(colors)
+        self.iv_frame.apply_colors(colors)
 
     def _read_inputs(self):
         seed = parse_seed(self.seed_var.get())
@@ -2420,8 +2509,13 @@ class SearcherTab(SearchTab):
     COLUMNS = SearcherResults.COLUMNS
 
     def _build_inputs(self, parent):
-        self.iv_frame = IvRangeFrame(parent, on_submit=self.start_search)
+        self.iv_frame = IvRangeFrame(parent, on_submit=self.start_search,
+                                     on_message=self.flash_status)
         self.iv_frame.grid(row=0, column=0, sticky="nsew")
+
+    def apply_colors(self, colors):
+        super().apply_colors(colors)
+        self.iv_frame.apply_colors(colors)
 
     def _read_inputs(self):
         iv_ranges = self.iv_frame.ranges()
@@ -3042,6 +3136,12 @@ class ThemeManager:
                   selectforeground=[("readonly", p["text"])])
         style.configure("ComboboxPopdownFrame", background=p["surface"], bordercolor=p["border"],
                         lightcolor=p["surface"], darkcolor=p["surface"])
+        # Its list is a classic Listbox that Tk creates when it first opens: it reads its colours
+        # from the option database.
+        for option, color in (("background", p["surface"]), ("foreground", p["text"]),
+                              ("selectBackground", p["accent"]),
+                              ("selectForeground", p["accent_text"])):
+            self.root.option_add(f"*TCombobox*Listbox.{option}", color)
         # Check boxes and radio buttons keep the window colour on hover: only the indicator reacts.
         for name in ("TCheckbutton", "TRadiobutton"):
             style.configure(name, background=p["background"], foreground=p["text"],
@@ -3198,12 +3298,204 @@ class AboutDialog(tk.Toplevel):
 # Application
 # ------------------------------------------------------------------------------------------------
 
+# The application icon: Mew (from Mew.png), as base64 PNGs of every size Windows may ask for at
+# 100-200 % display scaling (16-24 px in the title bar, 32-64 px in the taskbar and Alt+Tab).
+APP_ICONS = {
+    16: (
+        "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAChUlEQVR4nIWS20+SARjG6a7ZXesv6LrDtK10XbRs67"
+        "DW5jTTmUWBkhrKyVAIAcHDTCU/1IKWNkFNRMUDOPUzEFRQ8RsgCAvTzWatRqWredFmPU22WvPEc/luz2/P+z4vjbZD"
+        "KZevMvKz6WQFX8hWSeTKZ8rqeUKmVMg4AmFORpbz+sVLybSDVEhnPHlRVYv2p40YbesENTgCW2cPups00FTWICcji7"
+        "XLdObEKRo9LT2ZkCpkdWLpxyljPwIjVqw5KXz3h/FpzofQuAPO3kG01qicqVeuHdoFKcim36x+JNo0t+gwOeeHdYLC"
+        "FyqAzcV3WPeGMG91weTwYFTfBUZ65uk9499Lu6W19w6CPhBAgz2Mr57FKGDDG0KHPYjUvkW4SRtKHjwU77kGn8lacQ"
+        "0Mg2dwgdHp/pdgwxdCvdmDjHY3fFYHakVl07sAifEJR+Tc4l8OQx+8FhLLE058dvvwI7CEb95g9B5v30xGj0rIlOt7"
+        "riDKLySMTdrfpN6AWZMFwbEJrE7NIWydAjU0CtvrHvRrW7cIqUK0b408JitVWsT7qZLI0a5qxNDLNnSpn0Mtq4CMww"
+        "+Xc4uT9jWrJPLz5hZdj4TNSeExcrfkHAGkRTxI2Nzt/kMXziXF0WKpqbwyTldPrHosY4hQfkSoAD64KFha9VDLlHdi"
+        "Akh9l3hheBzvp93RB4rMb0P8WHNRmDWZI9YO47EDATN95hsmTUvvZLcJIdKBJds0Vuwz2P7OIGnX+obHz8ZMkRifcJ"
+        "TPZC3r6tUwNGpgbNaCfff+q5jGvyor5KZXCIQLBdn0Uh6TJS/NY6tqSh77SvPYx2OaczNvH25WVM02lJWf/H/eVkdw"
+        "q4ViYqfhD+Nii1B1nyNpAAAAAElFTkSuQmCC"),
+    24: (
+        "iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAEtUlEQVR42pVWa0wcVRQ+szOzMzu7szO7wC5doULLkv"
+        "KqFhTRVCnUpqUoiEljYhNjfLQNaUx9pD98/NGYmP5o7I9qTdVE7UsbIiTiixartlZJECxLipEKlcY2C7vLss9hZnY8"
+        "d6GEWHYLJzmZmztzv++ec+757lCQwe6vrslx5+b9mOtwdDkkuVO2SyMmimplWfZJwzBGdV0/4g8GYvFEvCUQCrWFZs"
+        "JHz5z/+eT/cZhMBBaOX+stKq5A4Aqe4141s6xuE6y0bLcDgkM4Etlr4XmIJRIUbgDGJybOLYWTkUCwWNYUFRQCggJn"
+        "NoMkiggukSdgBISACkdmYCYahXgiAcHpae+yCLbVN+Qg8Ebc5QselxtEmw1EK3HrwpiYJNohEpPQYxCNRUHTtUcjrW"
+        "2uE11f+pckqKlcTxWvXn14Q3nlnuLCQso/FYDSNWuB5szA0yxQ+I3VIgBD02DgmMP5pMKAaBeBwXEZa5bGrk28gq/2"
+        "LyYw3Rz0+y4ZvJnbp2rqR0Mjl8HjdkGKY8FnXwU9mhX0VAooCmnQCRltokHHUacmw6TLA6zFAnab2Lr1oU2wJAGxY5"
+        "0dszzHP3/txo0RSZQACwBvD0WgstABIYq7Jb9XQYAHipxwaFQFVrJBntNZioX3ZiQg1tXzXT4WslSw8JAwKBgKKvDw"
+        "91NwKXZrAfujFDT1huByxACW5yA/z0WiaM5aZCxm0x3ufBONudYCIdjlpEHmdfBiulKYJjxCC9/W2lLwYu4szutgRF"
+        "VwSOlTth1fvZuRAI/nfQ5ZBl3TwZJMQrubB55LoUP6eBJ4UgpiFVYTlLAAyqwGijKbrgtZnzUCVVUHk0kFovEYpIwU"
+        "upEGJkbKSwpNPKEkgXw390xCAj2eTJAoB7MSxJPJTyeDU2UOyb7XLtpNAu5MURQ8kuhcEiPhCdMcqDIPjI2GHU2efZ"
+        "ja3YvxqEydvGfnUw05svwxdm8RkQcbaTZBACt2NiZrvsFiEI5GIBQOq5qmvXV90v/O+8c+UbMS3FN1FzRtaiwu93qb"
+        "cUfren+54MIUtThlmUMHySamewJBYSoYUJHgIr7fd/rrrwaWJRWyJDEet7seNajhTk/ByYFhn+GU5B3SvMgFEdiCFR"
+        "dIY2EKsTpvfvj5iYFMmciYopee3UWiaZueCZ8uKSqmUVkR2JJODyk6Ebk//75CfBRrVPX6wQPJFanp+nVlBOqZu8sr"
+        "6UKPJ61DJpNpTi6InCOZgI7iVzJx/d83cOq1FUXQ89mp51AxjxJ5xksGWIZJn3MaSeYawUinbFZVwR8IqFjw6sadO3"
+        "zLjsAqCDriHMfbaovdZnMREhLBYhJCgDKtYfeP4Z3Rgst8y47gptVtqGmvr607vL1hM+CtBkRCiJOFfX8MQs/5n17u"
+        "+Lb7YKb1zO0ITCbqyF/jY1tRzlvIFWlmWGAY1Cnc/e/DQ92B6eChbOtvS1BdUbUxz5nz4Oj4WB8W2M8yrIiRUDRDuw"
+        "ryV9ViaurO/XrxwoqPKbH9u9sfwevzC7z0+zu+6W7s/uHsQpc2N27mHtuy7Qxqz71X/rn69IEP3ju1ZAayERD9wb8L"
+        "3+Dw8BOLwYl1955VfhsceNxsNg/oKV3NBPIfLEHlJM+ze9kAAAAASUVORK5CYII="),
+    32: (
+        "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"
+        "7Bq7nvF/A2iYWzbJGZpvAAAAAElFTkSuQmCC"),
+    48: (
+        "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"
+        "/A8at/bBB/UHCwAAAABJRU5ErkJggg=="),
+    64: (
+        "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")}
+
+
 class RanchRngApp(tk.Tk):
     def __init__(self, settings=None):
         super().__init__()
         self.withdraw()                 # shown once its size is known
         self.settings = settings if settings is not None else AppSettings()
         self.title(APP_TITLE)
+        # Mew as the icon of this window and of every dialog; Windows picks the size it needs.
+        self._icons = [tk.PhotoImage(master=self, data=data) for data in APP_ICONS.values()]
+        self.iconphoto(True, *self._icons)
         self.theme = ThemeManager(self)
         self.theme_var = tk.StringVar(value=self.settings.theme)
         self._about = None
@@ -3308,8 +3600,20 @@ def enable_dpi_awareness():
             pass
 
 
+def set_taskbar_identity():
+    """Give the process its own application ID, so that the Windows taskbar shows the window's
+    icon instead of the one of python.exe (must run before the Tk window exists)."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Real96.RanchRNGTool")
+        except (AttributeError, OSError):
+            pass
+
+
 def main():
     enable_dpi_awareness()
+    set_taskbar_identity()
     RanchRngApp().mainloop()
 
 
