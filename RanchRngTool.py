@@ -96,7 +96,8 @@ MAX_RESULTS = 5_000_000     # safety cap, every result row is kept in memory
 # every Pokémon on it is shuffled and placed again, about 6 calls each, so N Pokémon add 6 * N.
 TRADE_OFFSET_CHOICES = ("Accepted", "Refused")
 TRADE_OFFSET_VERSIONS = ("JPN Pt", "GER")       # the names of the Seed from Dex versions
-DEFAULT_TRADE_OFFSET_VERSION = "GER"
+DEFAULT_TRADE_OFFSET_VERSION = "JPN Pt"
+DEFAULT_RANCH_POKEMON = 40
 TRADE_OFFSETS = {"GER": {"Accepted": 62, "Refused": 23},
                  "JPN Pt": {"Accepted": 44, "Refused": 16}}
 CALLS_PER_RANCH_POKEMON = {"GER": 0, "JPN Pt": 6}
@@ -2628,7 +2629,7 @@ class TradeOffsetOption:
         self.enabled_var = tk.BooleanVar(value=True)
         self.choice_var = tk.StringVar(value=TRADE_OFFSET_CHOICES[0])
         self.version_var = tk.StringVar(value=DEFAULT_TRADE_OFFSET_VERSION)
-        self.pokemon_var = tk.StringVar()
+        self.pokemon_var = tk.StringVar(value=str(DEFAULT_RANCH_POKEMON))
         indent = 16 if column else 0        # the labels of a second column of fields
         self.check = ttk.Checkbutton(master, text="Trade Offset", variable=self.enabled_var,
                                      command=self._sync_state)
