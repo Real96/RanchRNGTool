@@ -19,15 +19,18 @@ found here is the Generator's "Current Seed" at the advance that produces the sp
 In both tabs a click on an IV name sets its range to 0-31, a Ctrl+click to 31-31, and a right-click
 in the IVs box copies or pastes all the ranges (as 0/0/0/0/0/0-31/31/31/31/31/31), clears them or
 sets them all to 31.
+Every typed field corrects itself while the user types or pastes, has Undo / Redo (Ctrl+Z / Ctrl+Y)
+and a right-click menu with Undo, Redo, Cut, Copy, Paste, Delete and Select All.
 Seed to RTC tab: date/time (RTC) to set so that the boot seed reaches a target seed within a range
 of advances, on the emulator only. In Dolphin the boot seed is Origin Seed + 0x39EF8B0 * seconds
 since 01/01/2000 00:00:00; the Origin Seed is kept in an .ini file with this script's name, next to
 it (ranch_rng_tool.ini).
 Trade Offset (Generator and Seed to RTC): when Phione and Mew are offered in the same deposit,
-Hayley offers Phione first, and Mew's IVs are generated 62 rand() calls after the A press that
-accepts that trade (Accepted) or 23 after the one that refuses it (Refused). With the option on, the
-Generator lists the seed and advance of the A press next to the IVs generated that many calls
-later, and Seed to RTC aims the A press that many calls before the Target Seed.
+Hayley offers Phione first, and Mew's IVs are generated a number of rand() calls after the A press
+that accepts that trade (Accepted) or refuses it (Refused): 62 / 23 with GER, 6 * N + 44 /
+6 * N + 16 with JPN Pt, N being the number of Pokémon on the ranch (Ranch Pokémon). With the option
+on, the Generator lists the seed and advance of the A press next to the IVs generated that many
+calls later, and Seed to RTC aims the A press that many calls before the Target Seed.
 Seed from Camera tab: the current rand() state from a sequence of camera movements of the idle
 ranch (3 calls per camera), after an Initial Seed or by bruteforce over all the states.
 Seed from Dex tab: the current rand() state from the Pokédex descriptions that the trade shows at
@@ -88,8 +91,16 @@ DEFAULT_MAX_ADVANCES = 1_000_000
 MAX_RESULTS = 5_000_000     # safety cap, every result row is kept in memory
 
 # Trade Offset: rand() calls from the A press on Phione's offer to the generation of Mew's IVs, when
-# both trades are offered in the same deposit (measured in the game).
-TRADE_OFFSETS = {"Accepted": 62, "Refused": 23}
+# both trades are offered in the same deposit. GER: measured in the game, with only the favourite
+# Pokémon shown (EUR; USA and JPN run the same code). JPN Pt rebuilds the ranch after the offer:
+# every Pokémon on it is shuffled and placed again, about 6 calls each, so N Pokémon add 6 * N.
+TRADE_OFFSET_CHOICES = ("Accepted", "Refused")
+TRADE_OFFSET_VERSIONS = ("JPN Pt", "GER")       # the names of the Seed from Dex versions
+DEFAULT_TRADE_OFFSET_VERSION = "GER"
+TRADE_OFFSETS = {"GER": {"Accepted": 62, "Refused": 23},
+                 "JPN Pt": {"Accepted": 44, "Refused": 16}}
+CALLS_PER_RANCH_POKEMON = {"GER": 0, "JPN Pt": 6}
+MAX_RANCH_POKEMON = 1500        # JPN Pt places at most 1,500 Pokémon (the limit in its code)
 SEARCH_CHUNK = 1 << 16      # advances between two cancel/progress checks
 
 U32 = "I" if array("I").itemsize == 4 else "L"     # array typecode for unsigned 32-bit values
@@ -152,6 +163,13 @@ def advance_states(states, steps):
     values go back)."""
     mul, add = rand_jump(steps & MASK32)
     return array(U32, ((state * mul + add) & MASK32 for state in states))
+
+
+def trade_offset(choice, version, ranch_pokemon=0):
+    """rand() calls from the A press that accepts or refuses Phione's trade (`choice`, a
+    TRADE_OFFSET_CHOICES entry) to the generation of Mew's IVs, in `version` (a
+    TRADE_OFFSET_VERSIONS entry) with `ranch_pokemon` Pokémon on the ranch."""
+    return TRADE_OFFSETS[version][choice] + CALLS_PER_RANCH_POKEMON[version] * ranch_pokemon
 
 
 class SearchProgress:
@@ -1109,6 +1127,7 @@ def input_width(kind):
         "results": len(str(MAX_RESULTS)) * digit,
         "rtc": 14 * digit + font.measure("// ::"),          # dd/mm/yyyy hh:mm:ss
         "iv": 2 * digit,
+        "pokemon": len(str(MAX_RANCH_POKEMON)) * digit,
     }[kind]
     return -(-(pixels + 4) // font.measure("0"))            # 4 px for the text cursor
 
@@ -1196,44 +1215,52 @@ FIELD_CLEANERS = {
     "results": lambda text: clean_decimal(text, MAX_RESULTS),
     "rtc": clean_rtc,
     "iv": lambda text: clean_decimal(text, 31),
+    "pokemon": lambda text: clean_decimal(text, MAX_RANCH_POKEMON),
 }
 
 
-def keep_clean(field, variable, clean):
+def keep_clean(field, variable, clean, on_change=None):
     """Rewrite `variable` with clean(text) after every change of `field` (typing, pasting,
-    deleting or a value set by the program), keeping the text cursor by the same characters."""
+    deleting or a value set by the program), keeping the text cursor by the same characters;
+    then call on_change(), if given."""
     busy = False
 
-    def on_change(*_):
+    def changed(*_):
         nonlocal busy
+        if busy:
+            return
         text = variable.get()
         cleaned = clean(text)
-        if busy or cleaned == text:
-            return
-        try:
-            cursor = field.index("insert")
-        except tk.TclError:
-            cursor = len(text)
-        before = clean(text[:cursor])
-        if cleaned.startswith(before):
-            position = len(before)
-        else:   # rewritten (leading zeros, a corrected date): stay before the same characters
-            position = len(cleaned) - len(clean(text[cursor:]))
-        busy = True
-        try:
-            variable.set(cleaned)
-        finally:
-            busy = False
-        field.icursor(min(max(position, 0), len(cleaned)))
+        if cleaned != text:
+            try:
+                cursor = field.index("insert")
+            except tk.TclError:
+                cursor = len(text)
+            before = clean(text[:cursor])
+            if cleaned.startswith(before):
+                position = len(before)
+            else:   # rewritten (leading zeros, a corrected date): stay before the same characters
+                position = len(cleaned) - len(clean(text[cursor:]))
+            busy = True
+            try:
+                variable.set(cleaned)
+            finally:
+                busy = False
+            field.icursor(min(max(position, 0), len(cleaned)))
+        if on_change is not None:
+            on_change()
 
-    variable.trace_add("write", on_change)
+    variable.trace_add("write", changed)
 
 
 def input_field(master, variable, kind, on_submit=None):
     """ttk.Entry for a value of `kind` (see input_width and FIELD_CLEANERS): sized for the widest
-    value it accepts, and corrected while the user types or pastes."""
+    value it accepts, corrected while the user types or pastes, with undo and redo and the
+    right-click menu of the usual text fields (see EditMenu)."""
     field = ttk.Entry(master, textvariable=variable, width=input_width(kind))
-    keep_clean(field, variable, FIELD_CLEANERS[kind])
+    history = FieldHistory(field, variable)
+    keep_clean(field, variable, FIELD_CLEANERS[kind], on_change=history.note_change)
+    EditMenu.attach(field, history)
     if on_submit is not None:
         field.bind("<Return>", on_submit)
     return field
@@ -1294,6 +1321,245 @@ def popup_menu(menu, x, y):
         menu.tk_popup(x, y)
     finally:
         menu.grab_release()
+
+
+# ------------------------------------------------------------------------------------------------
+# Undo, redo and right-click menu of the input fields
+# ------------------------------------------------------------------------------------------------
+
+def text_change(old, new):
+    """(position, removed text, inserted text) of the one edit that turns `old` into `new`."""
+    start, shorter = 0, min(len(old), len(new))
+    while start < shorter and old[start] == new[start]:
+        start += 1
+    end = 0
+    while end < shorter - start and old[len(old) - 1 - end] == new[len(new) - 1 - end]:
+        end += 1
+    return start, old[start:len(old) - end], new[start:len(new) - end]
+
+
+class FieldHistory:
+    """Undo and redo for an input field (a ttk.Entry has neither). The changes made by one event,
+    such as a paste over selected text, form one step, and a character typed or deleted right
+    after the previous one joins its step, so Undo takes back a whole run of typing."""
+
+    LIMIT = 100                         # steps kept
+
+    def __init__(self, field, variable):
+        self._field = field
+        self._variable = variable
+        self._texts = [variable.get()]  # the text before the first step and after every step
+        self._index = 0                 # the step the field shows
+        self._join = None               # (kind, position) of a one-character change that joins
+        self._pending = None            # after_idle job that records the changes of this event
+        self._restoring = False
+
+    def note_change(self):
+        """Called after every change of the field's variable (and its correction)."""
+        if not self._restoring and self._pending is None:
+            self._pending = self._field.after_idle(self._record)
+
+    def can_undo(self):
+        self._flush()
+        return self._index > 0
+
+    def can_redo(self):
+        self._flush()
+        return self._index < len(self._texts) - 1
+
+    def undo(self):
+        if self.can_undo():
+            self._show(self._index - 1)
+
+    def redo(self):
+        if self.can_redo():
+            self._show(self._index + 1)
+
+    def _flush(self):
+        """Record now the changes that wait for the end of their event."""
+        if self._pending is not None:
+            self._field.after_cancel(self._pending)
+            self._record()
+
+    def _record(self):
+        self._pending = None
+        try:
+            text = self._variable.get()
+        except tk.TclError:             # the window was closed meanwhile
+            return
+        previous = self._texts[self._index]
+        if text == previous:
+            return
+        position, removed, inserted = text_change(previous, text)
+        if len(inserted) == 1 and not removed:
+            kind, follow = "insert", position + 1           # typing goes on after the character
+        elif len(removed) == 1 and not inserted:
+            kind, follow = "delete", position               # Delete goes on here, Backspace before
+        else:
+            kind = follow = None
+        del self._texts[self._index + 1:]                   # a new change drops what was undone
+        join = self._join
+        if (kind is not None and join is not None and join[0] == kind and self._index > 0
+                and (position == join[1] or (kind == "delete" and position == join[1] - 1))):
+            self._texts[self._index] = text
+        else:
+            self._texts.append(text)
+            if len(self._texts) > self.LIMIT:
+                del self._texts[0]
+            self._index = len(self._texts) - 1
+        self._join = None if kind is None else (kind, follow)
+
+    def _show(self, index):
+        """Bring the field back to the text of step `index`, the cursor after the edited part."""
+        position, _, inserted = text_change(self._texts[self._index], self._texts[index])
+        self._index = index
+        self._join = None
+        self._restoring = True
+        try:
+            self._variable.set(self._texts[index])
+        finally:
+            self._restoring = False
+        self._field.selection_clear()
+        self._field.icursor(position + len(inserted))
+
+
+class EditMenu:
+    """The right-click menu of the input fields, with the entries of the usual text fields:
+    Undo, Redo, Cut, Copy, Paste, Delete and Select All. An entry is greyed out when it cannot
+    act: Cut, Copy and Delete need selected text, Paste text in the clipboard, Select All text
+    not already all selected. One menu per window serves all its fields."""
+
+    def __init__(self, window):
+        self.menu = tk.Menu(window, tearoff=False)
+        self._field = None
+        self._history = None
+        self.available = {}             # entry label -> it can act now (set by show())
+        keys = self.shortcut_labels(window)
+        for label, underline, action in (
+                ("Undo", 0, lambda: self._history.undo()),
+                ("Redo", 0, lambda: self._history.redo()),
+                (None, None, None),
+                ("Cut", 2, self._cut),
+                ("Copy", 0, self._copy),
+                ("Paste", 0, self._paste),
+                ("Delete", -1, self._delete),
+                (None, None, None),
+                ("Select All", -1, self._select_all)):
+            if label is None:
+                self.menu.add_separator()
+            else:
+                self.menu.add_command(label=label, underline=underline,
+                                      accelerator=keys.get(label, ""),
+                                      command=lambda label=label, action=action:
+                                      self.available.get(label) and action())
+
+    @staticmethod
+    def shortcut_labels(widget):
+        """The keys of Tk's <<Undo>>, <<Redo>>, <<Cut>>, ... events on this system, as the menu
+        shows them (macOS menus turn "Command-" into the ⌘ symbol)."""
+        system = widget.tk.call("tk", "windowingsystem")
+        if system == "aqua":
+            return {"Undo": "Command-Z", "Redo": "Shift-Command-Z", "Cut": "Command-X",
+                    "Copy": "Command-C", "Paste": "Command-V", "Select All": "Command-A"}
+        return {"Undo": "Ctrl+Z", "Redo": "Ctrl+Y" if system == "win32" else "Ctrl+Shift+Z",
+                "Cut": "Ctrl+X", "Copy": "Ctrl+C", "Paste": "Ctrl+V", "Select All": "Ctrl+A"}
+
+    @classmethod
+    def attach(cls, field, history):
+        """Give `field` the menu of its window, and Undo / Redo on their usual keys."""
+        field.bind("<<Undo>>", lambda event: (history.undo(), "break")[1])
+        field.bind("<<Redo>>", lambda event: (history.redo(), "break")[1])
+        if field.tk.call("tk", "windowingsystem") == "x11":
+            # Ctrl+A moves to the start of the text there (as in Emacs): select all as the menu says
+            for sequence in ("<Control-a>", "<Control-A>"):
+                field.bind(sequence, lambda event: (cls.select_all(field), "break")[1])
+
+        def show(event):
+            window = field.winfo_toplevel()
+            menu = getattr(window, "_edit_menu", None)
+            if menu is None:
+                menu = window._edit_menu = cls(window)
+            menu.show(field, history, event.x_root, event.y_root)
+            return "break"
+
+        for sequence in context_click_sequences(field):
+            field.bind(sequence, show)
+
+    def show(self, field, history, x, y):
+        if field.instate(["disabled"]):
+            return
+        field.focus_set()
+        text = field.get()
+        selected = field.selection_present()
+        all_selected = selected and (field.index("sel.first"),
+                                     field.index("sel.last")) == (0, len(text))
+        try:
+            clipboard = bool(field.clipboard_get())
+        except tk.TclError:             # an empty clipboard, or no text in it
+            clipboard = False
+        self.available = {"Undo": history.can_undo(), "Redo": history.can_redo(),
+                          "Cut": selected, "Copy": selected, "Paste": clipboard,
+                          "Delete": selected, "Select All": bool(text) and not all_selected}
+        theme = getattr(field.winfo_toplevel(), "theme", None)
+        colors = theme.colors if theme is not None and theme.colors else None
+        if colors is not None:
+            self.menu.configure(**menu_colors(colors))
+        for label, enabled in self.available.items():
+            self._grey_out(label, not enabled, colors)
+        self._field, self._history = field, history
+        popup_menu(self.menu, x, y)
+
+    def _grey_out(self, label, grey, colors):
+        """Show the entry `label` as unavailable or not. Windows draws the text of a disabled
+        entry a second time, one pixel lower, in white: invisible on a light menu, a bright
+        ghost on a dark one. There the entry stays active instead, in the disabled colour and
+        without hover highlight, and its command does nothing (see self.available)."""
+        if colors is None or self.menu.tk.call("tk", "windowingsystem") != "win32":
+            self.menu.entryconfigure(label, state="disabled" if grey else "normal")
+        elif grey:
+            self.menu.entryconfigure(label, state="normal",
+                                     foreground=colors["menu_disabled_text"],
+                                     activeforeground=colors["menu_disabled_text"],
+                                     activebackground=colors["menu_background"])
+        else:
+            self.menu.entryconfigure(label, state="normal", foreground=colors["menu_text"],
+                                     activeforeground=colors["menu_active_text"],
+                                     activebackground=colors["menu_active_background"])
+
+    def _copy(self):
+        field = self._field
+        if field.selection_present():
+            field.clipboard_clear()
+            field.clipboard_append(field.get()[field.index("sel.first"):field.index("sel.last")])
+
+    def _cut(self):
+        if self._field.selection_present():
+            self._copy()
+            self._field.delete("sel.first", "sel.last")
+
+    def _paste(self):
+        field = self._field
+        try:
+            text = field.clipboard_get()
+        except tk.TclError:
+            return
+        if field.selection_present():           # the text replaces the selection
+            first = field.index("sel.first")
+            field.delete("sel.first", "sel.last")
+            field.icursor(first)
+        field.insert("insert", text)
+
+    def _delete(self):
+        if self._field.selection_present():
+            self._field.delete("sel.first", "sel.last")
+
+    def _select_all(self):
+        self.select_all(self._field)
+
+    @staticmethod
+    def select_all(field):
+        field.selection_range(0, "end")
+        field.icursor("end")
 
 
 # ------------------------------------------------------------------------------------------------
@@ -2213,6 +2479,48 @@ def error_icon_png(size):
     return rgba_png(size, size, pixels)
 
 
+def segment_distance(x, y, start, end):
+    """Distance of the point (x, y) from the segment between the points `start` and `end`."""
+    (ax, ay), (bx, by) = start, end
+    dx, dy = bx - ax, by - ay
+    along = max(0.0, min(1.0, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)))
+    return math.hypot(x - ax - along * dx, y - ay - along * dy)
+
+
+CHECK_MARK = ((0.22, 0.53), (0.42, 0.73), (0.80, 0.29))     # the ✓ line, in box sizes
+
+
+def check_box_png(size, margins, border, fill, mark=None):
+    """Base64 PNG of a check box: a size x size square, a one-pixel `border` around `fill`, with
+    a check mark of colour `mark` (None: an empty box) and transparent `margins` (left, top,
+    right, bottom) around it. The colours are "#RRGGBB"."""
+    def rgb(color):
+        return tuple(int(color[index:index + 2], 16) for index in (1, 3, 5))
+
+    left, top, right, bottom = margins
+    edge, inside = rgb(border) + (255,), rgb(fill)
+    points = [(x * size, y * size) for x, y in CHECK_MARK]
+    half_width = max(0.8, 0.075 * size)
+    pixels = bytearray()
+    for y in range(top + size + bottom):
+        pixels.append(0)
+        for x in range(left + size + right):
+            bx, by = x - left, y - top
+            if not (0 <= bx < size and 0 <= by < size):
+                pixels += bytes(4)                          # transparent margin
+            elif bx in (0, size - 1) or by in (0, size - 1):
+                pixels += bytes(edge)
+            else:
+                ink = 0.0
+                if mark is not None:
+                    ink = coverage(half_width - min(segment_distance(bx + 0.5, by + 0.5, a, b)
+                                                    for a, b in zip(points, points[1:])))
+                color = inside if ink == 0.0 else tuple(
+                    round(f + (m - f) * ink) for f, m in zip(inside, rgb(mark)))
+                pixels += bytes(color + (255,))
+    return rgba_png(left + size + right, top + size + bottom, pixels)
+
+
 # ------------------------------------------------------------------------------------------------
 # Tabs
 # ------------------------------------------------------------------------------------------------
@@ -2225,6 +2533,7 @@ class IvRangeFrame(ttk.LabelFrame):
 
     def __init__(self, master, on_submit=None, on_message=None):
         super().__init__(master, text="IVs", padding=(10, 6))
+        self.grid_anchor("center")      # vertically centred when the box beside it is taller
         self._on_message = on_message
         ttk.Label(self, text="Min").grid(row=1, column=0, sticky="w", padx=(0, 6))
         ttk.Label(self, text="Max").grid(row=2, column=0, sticky="w", padx=(0, 6))
@@ -2305,32 +2614,68 @@ class IvRangeFrame(ttk.LabelFrame):
             self._on_message(f"Pasted {iv_ranges_text(ranges)} from the clipboard")
 
 
-TRADE_OFFSET_WIDTH = max(len(choice) for choice in TRADE_OFFSETS)     # drop-down width, characters
+TRADE_OFFSET_WIDTH = max(len(choice) for choice in TRADE_OFFSET_CHOICES)  # drop-down, characters
 
 
 class TradeOffsetOption:
     """"Trade Offset" check box (on at start), gridded in `master` at (row, column), with the
-    Accepted / Refused drop-down on its right; the drop-down is greyed out while the box is off."""
+    Accepted / Refused drop-down on its right. On the next row the version (JPN Pt or GER), and
+    on the one after it the number of Pokémon on the ranch, which the JPN Pt offsets depend on.
+    What does not apply is greyed out: everything but the box while it is off, the number of
+    Pokémon with GER."""
 
     def __init__(self, master, row, column, on_submit=None):
         self.enabled_var = tk.BooleanVar(value=True)
-        self.choice_var = tk.StringVar(value=next(iter(TRADE_OFFSETS)))
+        self.choice_var = tk.StringVar(value=TRADE_OFFSET_CHOICES[0])
+        self.version_var = tk.StringVar(value=DEFAULT_TRADE_OFFSET_VERSION)
+        self.pokemon_var = tk.StringVar()
+        indent = 16 if column else 0        # the labels of a second column of fields
         self.check = ttk.Checkbutton(master, text="Trade Offset", variable=self.enabled_var,
                                      command=self._sync_state)
-        self.check.grid(row=row, column=column, sticky="w", padx=(16 if column else 0, 8), pady=4)
+        self.check.grid(row=row, column=column, sticky="w", padx=(indent, 8), pady=4)
         self.combobox = ttk.Combobox(master, textvariable=self.choice_var,
-                                     values=tuple(TRADE_OFFSETS), width=TRADE_OFFSET_WIDTH)
+                                     values=TRADE_OFFSET_CHOICES, width=TRADE_OFFSET_WIDTH)
         self.combobox.grid(row=row, column=column + 1, sticky="ew", pady=4)
+        versions = ttk.Frame(master)
+        versions.grid(row=row + 1, column=column, columnspan=2, sticky="w", padx=(indent, 0),
+                      pady=2)
+        self.version_buttons = []
+        for index, name in enumerate(TRADE_OFFSET_VERSIONS):
+            button = ttk.Radiobutton(versions, text=name, value=name, variable=self.version_var,
+                                     command=self._sync_state)
+            button.grid(row=0, column=index, padx=(0, 12))
+            self.version_buttons.append(button)
+        self.pokemon_label = ttk.Label(master, text="Ranch Pokémon")
+        self.pokemon_label.grid(row=row + 2, column=column, sticky="w", padx=(indent, 8), pady=4)
+        self.pokemon_field = input_field(master, self.pokemon_var, "pokemon", on_submit)
+        self.pokemon_field.grid(row=row + 2, column=column + 1, sticky="ew", pady=4)
         if on_submit is not None:
             self.combobox.bind("<Return>", on_submit)
         self._sync_state()
 
     def _sync_state(self):
-        self.combobox.configure(state="readonly" if self.enabled_var.get() else "disabled")
+        enabled = self.enabled_var.get()
+        self.combobox.configure(state="readonly" if enabled else "disabled")
+        for button in self.version_buttons:
+            button.state(["!disabled" if enabled else "disabled"])
+        pokemon = enabled and self.version_var.get() == "JPN Pt"
+        for widget in (self.pokemon_label, self.pokemon_field):
+            widget.state(["!disabled" if pokemon else "disabled"])
 
     def offset(self):
-        """rand() calls between the shown seed and the IVs: 0 while the option is off."""
-        return TRADE_OFFSETS[self.choice_var.get()] if self.enabled_var.get() else 0
+        """rand() calls between the shown seed and the IVs: 0 while the option is off. Raises
+        ValueError with a message for the user when JPN Pt lacks the number of Pokémon."""
+        if not self.enabled_var.get():
+            return 0
+        version = self.version_var.get()
+        pokemon = 0
+        if CALLS_PER_RANCH_POKEMON[version]:
+            text = self.pokemon_var.get().strip()
+            if not text:
+                raise ValueError(f"Enter the number of Pokémon on the ranch in Ranch Pokémon: "
+                                 f"the {version} Trade Offset depends on it.")
+            pokemon = parse_number(text, "Ranch Pokémon", 0, MAX_RANCH_POKEMON)
+        return trade_offset(self.choice_var.get(), version, pokemon)
 
     def apply_colors(self, colors):
         """Recolour the drop-down list after a theme switch, if Tk has already created it (a list
@@ -2656,12 +3001,12 @@ class SeedRtcTab(SearchTab):
             raise ValueError(f"Min Advances ({min_advances}) is greater than Max Advances "
                              f"({max_advances}).")
         max_results = parse_number(self.max_results_var.get(), "Max Results", 1, MAX_RESULTS)
+        offset = self.trade_offset.offset()
         # Show the seeds as they were understood: 8 digits (the date is already complete).
         self.origin_var.set(f"{origin:08X}")
         self.target_var.set(f"{target:08X}")
         self._settings.origin_seed = origin
-        return (origin, target, first_second, min_advances, max_advances, max_results,
-                self.trade_offset.offset())
+        return origin, target, first_second, min_advances, max_advances, max_results, offset
 
     def _search(self, inputs, cancel, progress):
         *arguments, offset = inputs
@@ -3065,7 +3410,9 @@ def menu_colors(colors):
     """tk.Menu options for a ThemeManager colour set."""
     return {"background": colors["menu_background"], "foreground": colors["menu_text"],
             "activebackground": colors["menu_active_background"],
-            "activeforeground": colors["menu_active_text"], "selectcolor": colors["menu_text"]}
+            "activeforeground": colors["menu_active_text"], "selectcolor": colors["menu_text"],
+            # without it Windows draws greyed-out entries embossed, as light as the others in Dark
+            "disabledforeground": colors["menu_disabled_text"]}
 
 
 def set_dark_title_bar(window, dark):
@@ -3111,6 +3458,7 @@ class ThemeManager:
         self._listeners = []
         self.note_font = tkfont.nametofont("TkDefaultFont").copy()      # "Note.TLabel"
         self.note_font.configure(slant="italic")
+        self._check_images = None       # the check box images, made by the first apply()
 
     def add_listener(self, callback):
         """callback(colors) runs at every theme change."""
@@ -3138,6 +3486,7 @@ class ThemeManager:
             "heading_pressed": p["heading_pressed"], "heading_text": p["text"],
             "menu_background": p["surface"], "menu_text": p["text"],
             "menu_active_background": p["accent"], "menu_active_text": p["accent_text"],
+            "menu_disabled_text": p["muted"],
             "bar_background": p["background"], "bar_text": p["text"],
             "bar_active_background": p["hover"],
             "link": p["link"],
@@ -3227,6 +3576,7 @@ class ThemeManager:
                       foreground=[("disabled", p["muted"])],
                       indicatorbackground=[("pressed", p["pressed"]), ("active", p["hover"]),
                                            ("disabled", p["background"])])
+        self._configure_check_boxes(p)
         style.configure("TNotebook", background=p["background"], bordercolor=p["border"],
                         lightcolor=p["background"], darkcolor=p["background"])
         style.configure("TNotebook.Tab", background=p["raised"], foreground=p["text"],
@@ -3243,6 +3593,38 @@ class ThemeManager:
         style.configure("Horizontal.TProgressbar", background=p["progress"],
                         troughcolor=p["surface"], bordercolor=p["border"],
                         lightcolor=p["progress"], darkcolor=p["progress"])
+
+    def _configure_check_boxes(self, p):
+        """Check boxes show a check mark (✓) where clam draws a cross: their indicator is an image
+        element with one image per state, redrawn in the colours of the palette `p`. The box
+        follows the font size and keeps clam's margins around it (1 pixel, 4 on the right)."""
+        line = tkfont.nametofont("TkDefaultFont").metrics("linespace")
+        size = max(10, round(0.8 * line))
+        margins = (1, 1, max(4, round(line / 4)), 1)
+        looks = {                       # image: (fill, mark), the border is always p["border"]
+            "off": (p["surface"], None), "on": (p["surface"], p["text"]),
+            "off_active": (p["hover"], None), "on_active": (p["hover"], p["text"]),
+            "off_pressed": (p["pressed"], None), "on_pressed": (p["pressed"], p["text"]),
+            "off_disabled": (p["background"], None), "on_disabled": (p["background"], p["muted"]),
+        }
+        first = self._check_images is None
+        if first:
+            self._check_images = {key: tk.PhotoImage(master=self.root) for key in looks}
+        images = self._check_images
+        for key, (fill, mark) in looks.items():
+            images[key].configure(data=check_box_png(size, margins, p["border"], fill, mark))
+        if first:                       # the element stays in the clam theme: create it once
+            self.style.element_create(
+                "Check.indicator", "image", images["off"],
+                ("disabled", "selected", images["on_disabled"]),
+                ("disabled", images["off_disabled"]),
+                ("pressed", "selected", images["on_pressed"]), ("pressed", images["off_pressed"]),
+                ("active", "selected", images["on_active"]), ("active", images["off_active"]),
+                ("selected", images["on"]), sticky="")
+        self.style.layout("TCheckbutton", [("Checkbutton.padding", {"sticky": "nswe", "children": [
+            ("Check.indicator", {"side": "left", "sticky": ""}),
+            ("Checkbutton.focus", {"side": "left", "sticky": "w", "children": [
+                ("Checkbutton.label", {"sticky": "nswe"})]})]})])
 
 
 def reveal_window(window, dark):
