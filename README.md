@@ -6,8 +6,8 @@ It supports every WiiWare release:
 
 - *My Pokémon Ranch* (GER)
 - *Minna no Pokémon Bokujō: Platinum Taiouban* (JPN)
-- *My Pokémon Ranch* (PAL/USA) (Emulator or Gecko code necessary)
-- *Minna no Pokémon Bokujō* (JPN) (Emulator or Gecko code necessary)
+- *My Pokémon Ranch* (PAL/USA) ([Emulator](https://github.com/Real96/dolphin/releases)+[Lua](https://github.com/Real96/PokeLua/tree/main/Gen%204/Dolphin) or Gecko code necessary)
+- *Minna no Pokémon Bokujō* (JPN) ([Emulator](https://github.com/Real96/dolphin/releases)+[Lua](https://github.com/Real96/PokeLua/tree/main/Gen%204/Dolphin) or Gecko code necessary)
 
 ## Installation
 
@@ -177,7 +177,7 @@ Results:
 
 Tips:
 
-- Keep pressing the Wii Remote's **2** button (<img height="30" alt="image" src="https://github.com/user-attachments/assets/f4d26b44-d223-4b46-a57d-6658a48094ee" />) while you watch, to hold the
+- Keep pressing the Wii Remote's **2** button (<img height="30" alt="image" src="https://github.com/user-attachments/assets/54d4bf46-831f-4c55-8ac5-9061b3d648d1" />) while you watch, to hold the
   characters' attention. Otherwise extra advances happen and the search fails.
 - Focus-lock any character (<img height="30" alt="image" src="https://github.com/user-attachments/assets/a827b2e8-3888-42d7-bccf-fa6c6679a6bf" />): point at its body and press **A**. *Focus Lock* then appears at the bottom left. This also prevents extra advances.
 - To rest your fingers, pause with the **HOME** button after each movement you enter: the RNG does not advance during the pause. Press 2 again as soon as you are back in the game.
@@ -195,7 +195,7 @@ versions show descriptions that can be told apart; choose yours with the radio b
 | Option | Version | The two descriptions |
 |---|---|---|
 | **JPN Pt** | *Platinum Taiouban* (JPN) | Diamond/Pearl (*しょくぶつ…*) and Platinum (*きほんてき…*) |
-| **GER** | PAL, in German | Diamond (*…ein Pflanze…*) and Pearl (*…eine Pflanze…*) |
+| **GER** | *My Pokémon Ranch (GER)* | Diamond (*…ein Pflanze…*) and Pearl (*…eine Pflanze…*) |
 
 In the other versions Leafeon's descriptions all read the same.
 
@@ -204,11 +204,11 @@ To see the descriptions:
 1. When Hayley offers Phione for your Leafeon, answer **Yes → No → No**, again and again:
    - **Yes** shows Leafeon with a description, drawn by exactly one `rand()` call
    - **No** refuses the trade
-   - the second **No** answers *"Do you want to stop the trade?"*, so the offer comes back
+   - the second **No** answers *"Oh? You want to cancel trading?"*, so the offer comes back
 2. Enter each description with its button, in order.
 3. Search between Min Advances and Max Advances after the Initial Seed.
 
-This tab has no bruteforce, because each description tells very little: start from a seed found
+This tab has no bruteforce, because each description tells very little: you need to start from a seed found
 with `Seed from Camera` or `Seed from Dice`.
 
 Results:
@@ -242,7 +242,7 @@ faces.
 
 ### Entries list
 
-The Camera, Dex and Dice tabs list your entries, numbered, in the **Entries** box:
+The `Seed from Camera`, `Seed from Dex` and `Seed from Dice` tabs list your entries, numbered, in the **Entries** box:
 
 - every button you press adds one entry;
 - **Remove**, or Delete / Backspace in the list, removes the selected entries, or the last one if
@@ -266,9 +266,9 @@ trade:
 
 The **Trade Offset** option, in the Generator and in Seed to RTC, takes this into account:
 
-1. tick the box and choose **Accepted** or **Refused**;
-2. choose the version, **JPN Pt** or **GER**;
-3. with JPN Pt, enter N in **Ranch Pokémon** (up to 1,500).
+1. tick the box and choose **Accepted** or **Refused**
+2. choose the version, **JPN Pt** or **GER**
+3. with JPN Pt, enter N in **Ranch Pokémon**
 
 Then:
 
@@ -277,9 +277,7 @@ Then:
 - **Seed to RTC**: Target Seed stays the IVs seed, for example from the Searcher. Advances leads to
   the A press, that many calls before the target.
 
-The option is on at start, with Accepted, JPN Pt and 40 in Ranch Pokémon. Untick it to work with
-IVs seeds directly: the version and Ranch Pokémon are then greyed out. Ranch Pokémon is greyed out
-with GER too, and a search with JPN Pt asks for it if it is empty.
+Untick the option to work with IVs seeds directly.
 
 ## Moving seeds between tabs
 
@@ -291,19 +289,17 @@ Right-click a row of a results table:
 | Seed to RTC | **Set as Initial Seed in Generator** | Puts the boot seed in the Initial Seed of the Generator. |
 | Seed from Camera, Dex, Dice | **Set as Initial Seed in Generator** | Puts the current seed in the Initial Seed of the Generator. |
 
-You stay in the same tab, and its status bar confirms where the seed went.
-
 ## IVs filters: shortcuts, copy and paste
 
 In the **IVs** box of the Generator and of the Searcher:
 
-- **click** a stat's name (HP, Atk, Def, SpAtk, SpDef, Spd): that stat accepts any value, 0–31;
-- **Ctrl+click** (**⌘+click** on macOS) a stat's name: that stat must be 31;
+- **click** a stat's name (HP, Atk, Def, SpAtk, SpDef, Spd): that stat filter range is set to 0–31
+- **Ctrl+click** (**⌘+click** on macOS) a stat's name: that stat filter range is set to 31-31
 - **right-click** anywhere in the box (on macOS also Control+click) to open this menu:
 
 | Entry | Effect |
 |---|---|
-| **Copy IVs to clipboard** | Copies the filters as `0/0/0/0/0/0-31/31/31/31/31/31`: the six Min values, a dash, the six Max values, in the order PS/Atk/Def/SpAtk/SpDef/Spd. |
+| **Copy IVs to clipboard** | Copies the filters as `0/0/0/0/0/0-31/31/31/31/31/31`: the six Min values, a dash, the six Max values, in the order HP/Atk/Def/SpAtk/SpDef/Spd. |
 | **Paste IVs from clipboard** | Sets the filters from text in that format, for example copied from the other tab or sent by someone. Spaces are allowed. Other text shows *"The clipboard text did not match the expected format."* |
 | **Clear IVs** | Min 0 and Max 31 for every stat. |
 | **Set 6IVs** | Min and Max 31 for every stat. |
@@ -330,12 +326,7 @@ filters in both.
   - Ctrl+Home and Ctrl+End go to the first and last row.
 - **Scroll** with the mouse wheel or the scroll bar.
 
-Tables stay fast with millions of rows. The window can be resized from every side and maximized:
-the boxes and the tables follow its size.
-
 ## Input fields
-
-Fields correct themselves while you type or paste:
 
 Press **Enter** in any field to start the search.
 
@@ -348,7 +339,7 @@ Right-click a field (on macOS also Control+click) for the usual editing menu:
 - **Select All**.
 
 The IV boxes keep their own menu (see
-[IVs filters](#iv-filters-shortcuts-copy-and-paste)).
+[IVs filters](#ivs-filters-shortcuts-copy-and-paste)).
 
 ## Keyboard and mouse reference
 
