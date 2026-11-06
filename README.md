@@ -179,7 +179,7 @@ Tips:
 
 - Keep pressing the Wii Remote's **2** button (<img height="30" alt="image" src="https://github.com/user-attachments/assets/f4d26b44-d223-4b46-a57d-6658a48094ee" />) while you watch, to hold the
   characters' attention. Otherwise extra advances happen and the search fails.
-- Focus-lock any character: point at its body and press **A**. *Focus Lock* then appears at the bottom left. This also prevents extra advances.
+- Focus-lock any character (<img height="30" alt="image" src="https://github.com/user-attachments/assets/a827b2e8-3888-42d7-bccf-fa6c6679a6bf" />): point at its body and press **A**. *Focus Lock* then appears at the bottom left. This also prevents extra advances.
 - To rest your fingers, pause with the **HOME** button after each movement you enter: the RNG does not advance during the pause. Press 2 again as soon as you are back in the game.
 - With several results, or to check one, keep watching and compare with **Next Cameras**.
 
