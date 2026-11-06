@@ -146,16 +146,16 @@ movement you see.
 
 Enter the movements in the order you see them, with these buttons:
 
-| Button | Camera movement |
-|---|---|
-| Zoom In | Comes closer. |
-| Zoom Out | Moves away. |
-| Up-Down | Moves from above to below. There are two kinds: one very close to a character, and one that looks like Zoom Out but also moves slightly up or down. |
-| Left-Right | Moves from left to right, parallel to the ground. |
-| Right-Left | Moves from the right, high, to the left, low. |
-| Up + Up-Down | Starts overhead, then soon moves down. |
-| Up + Zoom In | Comes closer from high overhead. |
-| Not Clear | A movement you could not tell: it matches any movement. |
+| Button | Camera movement | In game video |
+|---|---|---|
+| Zoom In | Comes closer. | <div align="center"><img height="300" alt="1 Zoom In" src="https://github.com/user-attachments/assets/330219a4-ff90-4bdf-9c93-dd4cac3e09e6" /></div> |
+| Zoom Out | Moves away. | <div align="center"><img height="300" alt="7 Zoom Out" src="https://github.com/user-attachments/assets/d2a131f5-b223-4e6b-ba9d-f90bca61e50e" /></div> |
+| Up-Down | Moves from above to below. There are two kinds: one very close to a character, and one that looks like Zoom Out but also moves slightly up or down. | <div align="center"><img height="300" alt="3 1 Up-Down" src="https://github.com/user-attachments/assets/4199a86e-7b59-4dfa-a160-51d60d768532" /></div> |
+| Left-Right | Moves from left to right, parallel to the ground. | <div align="center"><img height="300" alt="5 Left-Right" src="https://github.com/user-attachments/assets/293bb078-92c5-47cb-bcca-6fd6176c448c" /></div> |
+| Right-Left | Moves from the right, high, to the left, low. | <div align="center"><img height="300" alt="6 Right-Left" src="https://github.com/user-attachments/assets/925adc24-2062-4676-b0b6-7f00a84c966a" /></div> |
+| Up + Up-Down | Starts overhead, then soon moves down. | <div align="center"><img height="300" alt="3 2 Up-Down" src="https://github.com/user-attachments/assets/1fb84b23-2947-4434-bbc6-e6115526cbd9" /></div> |
+| Up + Zoom In | Comes closer from high overhead. | <div align="center"><img height="300" alt="2 Up + Zoom In" src="https://github.com/user-attachments/assets/fc411854-13df-4426-bfaf-2cde4eaabaed" /></div> |
+| Not Clear | A movement you could not tell: it matches any movement. | <div align="center"><img height="300" alt="1 Zoom In" src="https://github.com/user-attachments/assets/330219a4-ff90-4bdf-9c93-dd4cac3e09e6" /></div> |
 
 Then search in one of two ways:
 
@@ -176,6 +176,7 @@ Results:
 | Next Cameras | The next 3 movements, to check the result. |
 
 Tips:
+
 - Keep pressing the Wii Remote's **2** button (<img height="30" alt="image" src="https://github.com/user-attachments/assets/f4d26b44-d223-4b46-a57d-6658a48094ee" />) while you watch, to hold the
   characters' attention. Otherwise extra advances happen and the search fails.
 - Focus-lock any character: point at its body and press **A**. *Focus Lock* then appears at the bottom left. This also prevents extra advances.
@@ -233,8 +234,8 @@ rolls.
 
 Enter the faces with the die buttons, then search in one of two ways:
 
-- from an Initial Seed, by default 0 to 1,000,000 advances after it;
-- with **Bruteforce**, which needs at least 13 rolls.
+- from an Initial Seed
+- with **Bruteforce**, which needs at least 13 rolls
 
 Results: **Current Seed** (right after the last roll), **Advances** and **Next Rolls**, the next 5
 faces.
@@ -296,7 +297,7 @@ You stay in the same tab, and its status bar confirms where the seed went.
 
 In the **IVs** box of the Generator and of the Searcher:
 
-- **click** a stat's name (PS, Atk, Def, SpAtk, SpDef, Spd): that stat accepts any value, 0–31;
+- **click** a stat's name (HP, Atk, Def, SpAtk, SpDef, Spd): that stat accepts any value, 0–31;
 - **Ctrl+click** (**⌘+click** on macOS) a stat's name: that stat must be 31;
 - **right-click** anywhere in the box (on macOS also Control+click) to open this menu:
 
@@ -336,20 +337,6 @@ the boxes and the tables follow its size.
 
 Fields correct themselves while you type or paste:
 
-- **Seeds**: only hexadecimal digits stay, in capitals; a leading `0x` is removed, and a value
-  above `FFFFFFFF` becomes `FFFFFFFF`.
-- **Numbers**: only digits stay. A value above the maximum becomes the maximum:
-  - 4,294,967,295 for advances;
-  - 5,000,000 for Max Results;
-  - 1,500 for Ranch Pokémon;
-  - 31 for IVs.
-- **Initial RTC**:
-  - `.` and `-` are accepted as date separators;
-  - impossible values are corrected: 31/11 becomes 30/11, minute 65 becomes 59, the year stays
-    within 2000–2036;
-  - when you leave the field, an incomplete date is completed: a missing time becomes 00:00:00,
-    and a two-digit year becomes 20yy.
-
 Press **Enter** in any field to start the search.
 
 Right-click a field (on macOS also Control+click) for the usual editing menu:
@@ -360,11 +347,8 @@ Right-click a field (on macOS also Control+click) for the usual editing menu:
 - **Paste**, when the clipboard holds text: the field corrects it like typed text;
 - **Select All**.
 
-Entries that cannot act are greyed out. The IV boxes keep their own menu (see
+The IV boxes keep their own menu (see
 [IVs filters](#iv-filters-shortcuts-copy-and-paste)).
-
-Invalid input opens a message that says what to fix. In that message, Enter or Escape closes it,
-and Ctrl+C (⌘C) copies its text.
 
 ## Keyboard and mouse reference
 
@@ -449,19 +433,15 @@ and use `Trade Offset` **Accepted** in steps 2, 3 and 6.
 
 ## Limits
 
-- Only the IVs can be chosen: the nature and the PID come from the console's timer.
-- **Seed to RTC** works only on Dolphin, for dates from 01/01/2000 to 31/12/2036.
-- **Seed from Dex** works only with *Platinum Taiouban* and with the PAL version in German.
+- Only the IVs can be chosen: the nature and the PID come from the not predictable console's timer.
+- **Seed to RTC** works only on Dolphin emulator.
+- **Seed from Dex** works only with *Platinum Taiouban* and with the German (PAL) version. You need Dolphin emulator or Gecko code for all the others.
 - **Seed from Dice** works only with *Platinum Taiouban*.
-- Results per search:
-  - **Generator**: at most 5,000,000;
-  - **Searcher**: filters matching more than about 5,000,000 seeds are refused;
-  - **Camera, Dex and Dice tabs**: at most 100,000.
 
 ## Credits
 
 - sina_poke for the original *RanchRNGtool*
 - サイファー for these great guides:
-  - [the RNG method for Mew](https://e52301147.hatenablog.com/entry/2024/05/19/120843), with
-    the camera and Pokédex methods;
+  - [the RNG method for Mew](htt://e52301147.hatenablog.com/entry/2024/05/19/120843), with
+    the Camera and Pokédex methods
   - [the dice method](https://e52301147.hatenablog.com/entry/2024/06/12/172738).
