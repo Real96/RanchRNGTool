@@ -148,13 +148,13 @@ Enter the movements in the order you see them, with these buttons:
 
 | Button | Camera movement |
 |---|---|
-| Zoom In | <div align="center"><img height="250" alt="1 Zoom In" src="https://github.com/user-attachments/assets/330219a4-ff90-4bdf-9c93-dd4cac3e09e6" /></div> |
-| Zoom Out | <div align="center"><img height="250" alt="7 Zoom Out" src="https://github.com/user-attachments/assets/d2a131f5-b223-4e6b-ba9d-f90bca61e50e" /></div> |
-| Up-Down | <div align="center"><img height="250" alt="3 1 Up-Down" src="https://github.com/user-attachments/assets/4199a86e-7b59-4dfa-a160-51d60d768532" /></div> |
-| Left-Right | <div align="center"><img height="250" alt="5 Left-Right" src="https://github.com/user-attachments/assets/293bb078-92c5-47cb-bcca-6fd6176c448c" /></div> |
-| Right-Left | <div align="center"><img height="250" alt="6 Right-Left" src="https://github.com/user-attachments/assets/925adc24-2062-4676-b0b6-7f00a84c966a" /></div> |
-| Up + Up-Down | <div align="center"><img height="250" alt="3 2 Up-Down" src="https://github.com/user-attachments/assets/1fb84b23-2947-4434-bbc6-e6115526cbd9" /></div> |
-| Up + Zoom In | <div align="center"><img height="250" alt="2 Up + Zoom In" src="https://github.com/user-attachments/assets/fc411854-13df-4426-bfaf-2cde4eaabaed" /></div> |
+| Zoom In | <div align="center"><img height="350" alt="1 Zoom In" src="https://github.com/user-attachments/assets/330219a4-ff90-4bdf-9c93-dd4cac3e09e6" /></div> |
+| Zoom Out | <div align="center"><img height="350" alt="7 Zoom Out" src="https://github.com/user-attachments/assets/d2a131f5-b223-4e6b-ba9d-f90bca61e50e" /></div> |
+| Up-Down | <div align="center"><img height="350" alt="3 1 Up-Down" src="https://github.com/user-attachments/assets/4199a86e-7b59-4dfa-a160-51d60d768532" /></div> |
+| Left-Right | <div align="center"><img height="350" alt="5 Left-Right" src="https://github.com/user-attachments/assets/293bb078-92c5-47cb-bcca-6fd6176c448c" /></div> |
+| Right-Left | <div align="center"><img height="350" alt="6 Right-Left" src="https://github.com/user-attachments/assets/925adc24-2062-4676-b0b6-7f00a84c966a" /></div> |
+| Up + Up-Down | <div align="center"><img height="350" alt="3 2 Up-Down" src="https://github.com/user-attachments/assets/1fb84b23-2947-4434-bbc6-e6115526cbd9" /></div> |
+| Up + Zoom In | <div align="center"><img height="350" alt="2 Up + Zoom In" src="https://github.com/user-attachments/assets/fc411854-13df-4426-bfaf-2cde4eaabaed" /></div> |
 | Not Clear | A movement you could not tell: it matches any movement. |
 
 Then search in one of two ways:
