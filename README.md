@@ -6,8 +6,8 @@ It supports every WiiWare release:
 
 - *My Pokémon Ranch* (GER)
 - *Minna no Pokémon Bokujō: Platinum Taiouban* (JPN)
-- *My Pokémon Ranch* (PAL/USA) ([Emulator](https://github.com/Real96/dolphin/releases)+[Lua](https://github.com/Real96/PokeLua/tree/main/Gen%204/Dolphin) or Gecko code necessary)
-- *Minna no Pokémon Bokujō* (JPN) ([Emulator](https://github.com/Real96/dolphin/releases)+[Lua](https://github.com/Real96/PokeLua/tree/main/Gen%204/Dolphin) or Gecko code necessary)
+- *My Pokémon Ranch* (PAL/USA) ([Emulator](https://github.com/Real96/dolphin/releases)+[Lua](https://github.com/Real96/PokeLua/tree/main/Gen%204/Dolphin) or [Gecko code](https://github.com/Real96/RanchRNGTool/blob/main/pokedex_color_cheat.txt) necessary)
+- *Minna no Pokémon Bokujō* (JPN) ([Emulator](https://github.com/Real96/dolphin/releases)+[Lua](https://github.com/Real96/PokeLua/tree/main/Gen%204/Dolphin) or [Gecko code](https://github.com/Real96/RanchRNGTool/blob/main/pokedex_color_cheat.txt) necessary)
 
 ## Installation
 
@@ -338,7 +338,7 @@ Right-click a field (on macOS also Control+click) for the usual editing menu:
 - **Paste**, when the clipboard holds text: the field corrects it like typed text;
 - **Select All**.
 
-The IV boxes keep their own menu (see
+The IVs boxes keep their own menu (see
 [IVs filters](#ivs-filters-shortcuts-copy-and-paste)).
 
 ## Keyboard and mouse reference
@@ -424,15 +424,17 @@ and use `Trade Offset` **Accepted** in steps 2, 3 and 6.
 
 ## Limits
 
-- Only the IVs can be chosen: the nature and the PID come from the not predictable console's timer.
-- **Seed to RTC** works only on Dolphin emulator.
-- **Seed from Dex** works only with *Platinum Taiouban* and with the German (PAL) version. You need Dolphin emulator or Gecko code for all the others.
+- Only the IVs can be manipulated: the nature and the PID come from the not predictable console's timer.
+- **Seed to RTC** works only on [Dolphin emulator](https://github.com/Real96/dolphin/releases).
+- **Seed from Dex** works only with *Platinum Taiouban* and with the German (PAL) version. You need
+  [Dolphin emulator](https://github.com/Real96/dolphin/releases) or [Gecko code](https://github.com/Real96/RanchRNGTool/blob/main/pokedex_color_cheat.txt)
+  for all the others.
 - **Seed from Dice** works only with *Platinum Taiouban*.
 
 ## Credits
 
 - sina_poke for the original *RanchRNGtool*
 - サイファー for these great guides:
-  - [the RNG method for Mew](https://e52301147.hatenablog.com/entry/2024/05/19/120843), with
+  - [The RNG method for Mew](https://e52301147.hatenablog.com/entry/2024/05/19/120843), with
     the Camera and Pokédex methods
-  - [the dice method](https://e52301147.hatenablog.com/entry/2024/06/12/172738)
+  - [The Dice method](https://e52301147.hatenablog.com/entry/2024/06/12/172738)
