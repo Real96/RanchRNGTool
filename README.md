@@ -442,6 +442,6 @@ and use `Trade Offset` **Accepted** in steps 2, 3 and 6.
 
 - sina_poke for the original *RanchRNGtool*
 - サイファー for these great guides:
-  - [the RNG method for Mew](htt://e52301147.hatenablog.com/entry/2024/05/19/120843), with
+  - [the RNG method for Mew](https://e52301147.hatenablog.com/entry/2024/05/19/120843), with
     the Camera and Pokédex methods
-  - [the dice method](https://e52301147.hatenablog.com/entry/2024/06/12/172738).
+  - [the dice method](https://e52301147.hatenablog.com/entry/2024/06/12/172738)
