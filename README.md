@@ -143,7 +143,7 @@ Lists **every** IVs seed of the RNG cycle whose IVs fit the filters.
 <br>&nbsp;
 
 Finds your current seed from the camera of the ranch. When nobody interacts, the camera switches
-to a new shot about every 5 seconds. Each switch takes 3 calls, and one of them decides the
+to a new shot about every 5 seconds (only in in Auto Mode). Each switch takes 3 calls, and one of them decides the
 movement you see.
 
 Enter the movements in the order you see them, with these buttons:
@@ -234,7 +234,7 @@ you need.
 rolls.
 
 - The dice (*さいころ*) is one of the toys that come out of the toy box.
-- In free mode, grab it with **A+B** and release it to roll it. Keep pressing **2** meanwhile, as
+- In Free Mode, grab it with **A+B** and release it to roll it. Keep pressing **2** meanwhile, as
   with the cameras.
 - Each roll takes 3 calls, or 5 when it shows a 1, 5 or 6.
 
