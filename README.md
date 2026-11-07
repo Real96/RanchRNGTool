@@ -365,7 +365,8 @@ The IVs boxes keep their own menu (see
 
 This walk-through follows the Japanese guide (see [Credits](#credits)) on a real console with
 *Platinum Taiouban*, adapted to this tool. With the PAL version in German it works the same, with
-the GER descriptions and the GER `Trade Offset`. Phione's trade is refused and Mew is received (you can also accept it in case).
+the GER descriptions and the GER `Trade Offset`. Phione's trade is refused and Mew is received 
+(you can also accept it in case, read the note under the steps).
 
 **Before you start**
 
@@ -419,7 +420,7 @@ the GER descriptions and the GER `Trade Offset`. Phione's trade is refused and M
      trading?"*.
    - Hayley then offers Mew: go on and trade the Egg. The nature is random.
 
-To trade for Phione as well, accept its trade after the last description instead of refusing it,
+**Note**: To trade for Phione as well, accept its trade after the last description instead of refusing it,
 and use `Trade Offset` **Accepted** in steps 2, 3 and 6.
 
 ## Limits
