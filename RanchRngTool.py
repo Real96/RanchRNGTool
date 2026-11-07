@@ -8,9 +8,9 @@ at the generator entry) and builds the IV word from them, as in ranch_mew_phione
 
     a, b, c = first, second and third rand() output (15 bits each)
     IV word = c + (a << 15) + (b << 30)
-    PS = bits 0-4, Atk = 5-9, Def = 10-14, Spd = 15-19, SpAtk = 20-24, SpDef = 25-29
+    HP = bits 0-4, Atk = 5-9, Def = 10-14, Spd = 15-19, SpAtk = 20-24, SpDef = 25-29
 
-so PS/Atk/Def come from the third call and Spd/SpAtk/SpDef from the first one.
+so HP/Atk/Def come from the third call and Spd/SpAtk/SpDef from the first one.
 
 Generator tab: spreads of the IV seed advanced Min Advances..Max Advances times (one advance = one
 rand() call), filtered by IV ranges.
@@ -67,7 +67,7 @@ from datetime import datetime, timedelta
 from tkinter import ttk
 
 APP_TITLE = "Ranch RNG Tool"
-APP_DESCRIPTION = "Useful tool for RNG manipulation on My Pokémon Ranch games."
+APP_DESCRIPTION = "Useful tool for Mew RNG manipulation on My Pokémon Ranch."
 AUTHOR_NAME = "Real96"
 GITHUB_URL = "https://github.com/Real96/RanchRNGTool"
 THEMES = ("Light", "Dark")
@@ -84,7 +84,7 @@ MSL_ADD = 12345
 MASK32 = 0xFFFFFFFF
 MSL_MUL_INVERSE = pow(MSL_MUL, -1, 1 << 32)
 
-STAT_NAMES = ("PS", "Atk", "Def", "SpAtk", "SpDef", "Spd")
+STAT_NAMES = ("HP", "Atk", "Def", "SpAtk", "SpDef", "Spd")
 STAT_SHIFTS = (0, 5, 10, 20, 25, 15)    # bit offset of each STAT_NAMES entry in the IV word
 
 DEFAULT_MAX_ADVANCES = 1_000_000
@@ -221,7 +221,7 @@ def _value_runs(table):
 # ------------------------------------------------------------------------------------------------
 #
 # From the seed s0 the generator reads s1 = f(s0), s2 = f(s1), s3 = f(s2). Spd/SpAtk/SpDef are bits
-# 16-30 of s1, PS/Atk/Def bits 16-30 of s3, and s3 = M2 * s1 + C2 with M2/C2 the constants of two
+# 16-30 of s1, HP/Atk/Def bits 16-30 of s3, and s3 = M2 * s1 + C2 with M2/C2 the constants of two
 # calls. Bit 31 never reaches the IVs, so modulo 2^31 the pairs (s1, s3 - C2) are exactly the
 # points of the lattice {(x, y) : y = M2 * x (mod 2^31)}.
 #
@@ -295,7 +295,7 @@ def _box_points(basis, x0, x1, y0, y1):
 
 
 class SpreadFilter:
-    """IV ranges compiled for the first rand() call (Spd/SpAtk/SpDef) and the third (PS/Atk/Def)."""
+    """IV ranges compiled for the first rand() call (Spd/SpAtk/SpDef) and the third (HP/Atk/Def)."""
 
     def __init__(self, iv_ranges):
         self.first_ok = _stat_triple_table(iv_ranges[5], iv_ranges[3], iv_ranges[4])
