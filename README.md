@@ -413,7 +413,7 @@ the GER descriptions and the GER `Trade Offset`. Phione's trade is refused and M
    - Set that result as Initial Seed in Generator, and generate with your IVs and the `Trade Offset`
      settings of step 2.
    - The Advances of your target row is the number of descriptions still to see: keep looping and
-     count them. A tally counter helps.
+     count them.
 7. **Refuse Phione, receive Mew.**
    - After the last description, answer **No**, then **Yes** to *"Oh? You want to cancel
      trading?"*.
