@@ -143,7 +143,7 @@ Lists **every** IVs seed of the RNG cycle whose IVs fit the filters.
 <br>&nbsp;
 
 Finds your current seed from the camera of the ranch. When nobody interacts, the camera switches
-to a new shot about every 5 seconds (only in in Auto Mode). Each switch takes 3 calls, and one of them decides the
+to a new shot about every 5 seconds (only in Auto Mode). Each switch takes 3 calls, and one of them decides the
 movement you see.
 
 Enter the movements in the order you see them, with these buttons:
