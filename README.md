@@ -390,8 +390,7 @@ the GER descriptions and the GER `Trade Offset`. Phione's trade is refused and M
    - Right-click the result and choose **Set as Initial Seed in Generator**.
    - In the Generator, set the IVs you want and `Trade Offset` **Refused**, with **JPN Pt** and the
      number of Pokémon in **Ranch Pokémon** (**GER** for the PAL version in German).
-   - Choose a Max Advances you can reach: the guide searches up to about 4,000,000, a little over
-     3 hours at Taruo's ranch.
+   - Choose a Max Advances you can reach.
    - If nothing good comes up, restart the game for a new seed.
 3. **Advance.**
    - Taruo's ranch advances the RNG by about 320–370 per second.
@@ -416,8 +415,8 @@ the GER descriptions and the GER `Trade Offset`. Phione's trade is refused and M
    - The Advances of your target row is the number of descriptions still to see: keep looping and
      count them. A tally counter helps.
 7. **Refuse Phione, receive Mew.**
-   - After the last description, answer **No**, then **Yes** to *"Do you want to stop the
-     trade?"*.
+   - After the last description, answer **No**, then **Yes** to *"Oh? You want to cancel
+     trading?"*.
    - Hayley then offers Mew: go on and trade the Egg. The nature is random.
 
 To trade for Phione as well, accept its trade after the last description instead of refusing it,
