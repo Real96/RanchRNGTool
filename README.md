@@ -365,15 +365,16 @@ The IVs boxes keep their own menu (see
 
 This walk-through follows the Japanese guide (see [Credits](#credits)) on a real console with
 *Platinum Taiouban*, adapted to this tool. With the PAL version in German it works the same, with
-the GER descriptions and the GER `Trade Offset`. Phione's trade is refused and Mew is received.
+the GER descriptions and the GER `Trade Offset`. Phione's trade is refused and Mew is received (you can also accept it in case).
 
 **Before you start**
 
-- In your DS game (Diamond, Pearl or Platinum) you need a Leafeon and an Egg.
+- In your DS game (Diamond, Pearl or Platinum) you need a Leafeon and an Egg in the boxes.
 - On the ranch, Hayley must be asking for both: her wanted list shows the Leafeon (for Phione) and
   the Egg (for Mew).
 - Take all your own Pokémon back from the ranch, so that only Hayley's remain, and count them in
-  the breakdown (*うちわけ*): with *Platinum Taiouban* this number goes in **Ranch Pokémon**.
+  the *Deposit Details* (<img height="30" alt="image" src="https://github.com/user-attachments/assets/31684548-89d1-4f13-8fc3-7e496ed98155" />)
+  : with *Platinum Taiouban* this number goes in `Ranch Pokémon` box.
 - Register one of Hayley's Pokémon as favourite: point at it and press **A** on the circle above
   its head.
 - Optional but very useful: Taruo's ranch (*タルオの牧場*), whose 130 Bidoof and Bibarel advance the
@@ -396,11 +397,11 @@ the GER descriptions and the GER `Trade Offset`. Phione's trade is refused and M
    - Taruo's ranch advances the RNG by about 320–370 per second.
    - Stop a few minutes before the target. Then find your seed again with **Seed from Camera**:
      Bruteforce off, the seed of step 1 as Initial Seed, and a Max Advances above the advances
-     made; 7–9 movements are enough.
+     made; 7–9 movements should be enough.
    - Set the new seed as Initial Seed in Generator and generate again: the target's Advances is
      what remains.
 4. **Deposit.**
-   - Connecting with the DS and depositing also take advances, about 1,800 in the guide, so
+   - Connecting with the DS and depositing also take advances, about 1,800, so
      connect early enough.
    - Show only the favourite Pokémon on the ranch: the connection takes fewer advances.
    - The RNG stops on the green warning screen just before the connection: get the DS ready there.
@@ -408,7 +409,7 @@ the GER descriptions and the GER `Trade Offset`. Phione's trade is refused and M
 5. **Find your position.**
    - Hayley offers Phione for your Leafeon.
    - Loop **Yes → No → No** and enter each description in **Seed from Dex**, with the seed of
-     step 3 as Initial Seed, until one result is left. In the guide 15 descriptions were enough.
+     step 3 as Initial Seed, until one result is left. 15 descriptions should be enough.
 6. **Step to the target.**
    - Set that result as Initial Seed in Generator, and generate with your IVs and the `Trade Offset`
      settings of step 2.
