@@ -1,4 +1,4 @@
-# RanchRNGTool <img width="30" alt="Mew" src="https://github.com/user-attachments/assets/56565878-8215-4b9e-bd69-833044a78618" />
+# RanchRNGTool <img height="50" alt="Mew" src="https://github.com/user-attachments/assets/56565878-8215-4b9e-bd69-833044a78618" />
 
 Useful tool for Mew RNG manipulation on My Pokémon Ranch.
 
@@ -179,15 +179,16 @@ Results:
 
 Tips:
 
-- Keep pressing the Wii Remote's **2** button (<img height="30" alt="image" src="https://github.com/user-attachments/assets/54d4bf46-831f-4c55-8ac5-9061b3d648d1" />) while you watch, to hold the
+- Enter in Auto Mode (<img height="30" alt="image" src="https://github.com/user-attachments/assets/45a914a4-1862-48f4-abba-f916df7c514b" />)
+- Keep pressing the Wii Remote's **2** button (<img height="30" alt="image" src="https://github.com/user-attachments/assets/5cd2fda2-843b-4c72-b6cb-6de86107b19f" />) while you watch, to hold the
   characters' attention. Otherwise extra advances happen and the search fails.
-- Focus-lock any character (<img height="30" alt="image" src="https://github.com/user-attachments/assets/a827b2e8-3888-42d7-bccf-fa6c6679a6bf" />): point at its body and press **A**. *Focus Lock* then appears at the bottom left. This also prevents extra advances.
+- Focus-lock any character (<img height="30" alt="image" src="https://github.com/user-attachments/assets/c4b4f1bc-b3e6-4660-acad-a70101cdecb6" />): point at its body and press **A**. *Focus Lock* then appears at the bottom left. This also prevents extra advances.
 - To rest your fingers, pause with the **HOME** button after each movement you enter: the RNG does not advance during the pause. Press 2 again as soon as you are back in the game.
 - With several results, or to check one, keep watching and compare with **Next Cameras**.
 
 ### Seed from Dex
 
-<div align="center"><img width="609" height="672" alt="image" src="https://github.com/user-attachments/assets/80afad75-8949-41f0-960b-33dc3439a5b4" /></div>
+<div align="center"><img height="550" alt="image" src="https://github.com/user-attachments/assets/80afad75-8949-41f0-960b-33dc3439a5b4" /></div>
 <br>&nbsp;
 
 Finds your current seed from Leafeon's Pokédex descriptions during Phione's trade offer. Only two
@@ -226,7 +227,10 @@ you need.
 
 ### Seed from Dice
 
-*JPN Platinum Taiouban only* (the tab says *JPN Pt only*). It finds your current seed from dice
+<div align="center"><img height="550" alt="image" src="https://github.com/user-attachments/assets/90a3f454-320a-4bea-af52-aa79f8ce2f87" /></div>
+<br>&nbsp;
+
+*JPN Platinum Taiouban only*. It finds your current seed from dice
 rolls.
 
 - The dice (*さいころ*) is one of the toys that come out of the toy box.
@@ -468,7 +472,7 @@ can also accept it: see the note after the steps).
 - On the ranch, Hayley must be asking for both: her wanted list shows the Leafeon (for Phione) and
   the Egg (for Mew).
 - Take all your own Pokémon back from the ranch, so that only Hayley's remain, and count them in
-  the *Deposit Details* (<img height="30" alt="image" src="https://github.com/user-attachments/assets/31684548-89d1-4f13-8fc3-7e496ed98155" />):
+  the *Deposit Details* (<img height="30" alt="image" src="https://github.com/user-attachments/assets/32cab28e-146c-4bf5-ba86-8ea64648a498" />):
   with *Platinum Taiouban* this number goes in the `Ranch Pokémon` box.
 - Register one of Hayley's Pokémon as favourite: point at it and press **A** on the circle above
   its head.
