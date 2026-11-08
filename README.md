@@ -497,9 +497,7 @@ can also accept it: see the note after the steps).
    - In the Generator, set the IVs you want and `Trade Offset` **Refused**, with **JPN Pt** and the
      number of Pokémon in **Ranch Pokémon** (**GER** for all the other versions).
    - Choose a Max Advances you can reach.
-   - If nothing good comes up, restart the game for a new seed. Without the bulletin board of
-     *Platinum Taiouban* this also loses the owner's ranch (see
-     [Cycling the members](#cycling-the-members)), so you may prefer a larger Max Advances.
+   - If nothing good comes up, restart the game for a new seed.
 4. **Advance.**
    - Stay in the owner's ranch: Taruo's ranch in *Platinum Taiouban* advances the RNG by about
      320–370 per second.
