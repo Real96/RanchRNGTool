@@ -544,7 +544,7 @@ refusing it, and use `Trade Offset` **Accepted** in steps 3, 4 and 7.
 ## Credits
 
 - sina_poke for the original *RanchRNGtool*
-- サイファー for these great guides:
+- [サイファー](https://github.com/naga84000) for these great guides:
   - [The RNG method for Mew](https://e52301147.hatenablog.com/entry/2024/05/19/120843), with
     the Camera and Pokédex methods
   - [The Dice method](https://e52301147.hatenablog.com/entry/2024/06/12/172738)
